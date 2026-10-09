@@ -36,44 +36,6 @@ pub enum PromptError {
     Run(#[from] editspec::EditSpecError),
 }
 
-/// A row of the template's slot table.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Slot {
-    pub name: String,
-    pub from: i64,
-    pub to: i64,
-    pub fill_with: String,
-}
-
-/// The slot rows of TEMPLATE.md, in order.
-pub fn template_slots(template: &str) -> Vec<Slot> {
-    let frame = |c: &str| c.trim().strip_prefix('f').and_then(|f| f.parse().ok());
-    template
-        .lines()
-        .filter(|l| l.starts_with("| ") && !l.starts_with("| slot"))
-        .filter_map(|l| {
-            let cells: Vec<&str> = l.trim().trim_matches('|').split(" | ").collect();
-            Some(Slot {
-                name: cells.first()?.trim().to_string(),
-                from: frame(cells.get(1)?)?,
-                to: frame(cells.get(2)?)?,
-                fill_with: cells.last()?.trim().to_string(),
-            })
-        })
-        .collect()
-}
-
-/// The text under TEMPLATE.md's `## Rules` heading.
-pub fn template_rules(template: &str) -> String {
-    let Some(at) = template.find("## Rules") else {
-        return String::new();
-    };
-    let body = &template[at..];
-    let body = &body[body.find('\n').map_or(body.len(), |n| n + 1)..];
-    let end = body.find("\n## ").unwrap_or(body.len());
-    body[..end].trim().to_string()
-}
-
 /// One caption line per non-empty line of the script.
 pub fn script_lines(script: &str) -> Vec<String> {
     script
@@ -174,7 +136,7 @@ pub fn render(x: &PromptInputs) -> String {
         d,
         "|------|------|----|--------|-----------|-------------------|"
     );
-    let slots = template_slots(x.template);
+    let slots = template::slots(x.template);
     for s in &slots {
         let need = at(s.to - s.from).to_seconds();
         let fits: Vec<&str> = clips
@@ -250,7 +212,7 @@ pub fn render(x: &PromptInputs) -> String {
     );
 
     let _ = writeln!(d, "## 7. Rules");
-    let _ = writeln!(d, "{}\n", template_rules(x.template));
+    let _ = writeln!(d, "{}\n", template::rules(x.template));
 
     let _ = writeln!(d, "## 8. Done when");
     let cuts: Vec<String> = r
@@ -601,19 +563,19 @@ mod tests {
     #[test]
     fn slots_and_rules_are_read_from_the_finished_template() {
         let t = data("TEMPLATE.md");
-        let slots = template_slots(&t);
+        let slots = template::slots(&t);
         assert_eq!(slots.len(), 3);
         assert_eq!(
             slots[1],
-            Slot {
+            template::Slot {
                 name: "BUILD".into(),
                 from: 60,
                 to: 120,
                 fill_with: "the second item, same framing".into()
             }
         );
-        assert!(template_rules(&t).starts_with("- Cut on the beat"));
-        assert!(template_rules(&t).ends_with("no caption."));
+        assert!(template::rules(&t).starts_with("- Cut on the beat"));
+        assert!(template::rules(&t).ends_with("no caption."));
     }
 
     #[test]

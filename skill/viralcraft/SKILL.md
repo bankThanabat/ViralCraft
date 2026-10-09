@@ -91,7 +91,8 @@ Open `<run_dir>/TEMPLATE.md` and replace each `TODO`:
   when music enters, recurring sound effects. Say which are strict and which
   are loose.
 
-`finalize` never overwrites a TEMPLATE.md that has no `TODO:` left.
+Running `finalize` again keeps what you wrote in TEMPLATE.md and refreshes
+the measured lines; a slot whose frames changed comes back as `TODO`.
 
 Tell the user what the format is in two or three plain sentences and where
 the files are.

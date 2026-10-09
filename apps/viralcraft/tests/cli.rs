@@ -203,21 +203,26 @@ fn finalize_refuses_a_judgement_older_than_the_measurements() {
 }
 
 #[test]
-fn finalize_keeps_a_template_the_agent_has_finished() {
+fn finalize_keeps_what_the_agent_wrote_in_the_template() {
     let mut files = MEASURED.to_vec();
     files.push("judgement.json");
     let dir = run_dir_with(&files);
-    std::fs::write(
-        dir.path().join("TEMPLATE.md"),
-        "# Template: finished by the agent\n",
-    )
-    .unwrap();
+    let finalize = || viralcraft(&["finalize", dir.path().to_str().unwrap()], dir.path());
+    assert!(finalize().status.success());
 
-    let out = viralcraft(&["finalize", dir.path().to_str().unwrap()], dir.path());
+    let path = dir.path().join("TEMPLATE.md");
+    let draft = std::fs::read_to_string(&path).unwrap();
+    let rules_at = draft.find("TODO: the rules").unwrap();
+    let written = format!(
+        "{}- Cut on the beat.\n",
+        draft[..rules_at].replacen("| TODO |", "| the first item |", 1)
+    );
+    std::fs::write(&path, &written).unwrap();
 
-    assert!(out.status.success());
-    let kept = std::fs::read_to_string(dir.path().join("TEMPLATE.md")).unwrap();
-    assert_eq!(kept, "# Template: finished by the agent\n");
+    assert!(finalize().status.success());
+    let kept = std::fs::read_to_string(&path).unwrap();
+    assert!(kept.contains("| the first item |"), "{kept}");
+    assert!(kept.ends_with("- Cut on the beat.\n"), "{kept}");
 }
 
 #[test]

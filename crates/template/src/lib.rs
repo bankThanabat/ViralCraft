@@ -232,14 +232,91 @@ pub fn render(x: &Inputs) -> String {
     d
 }
 
-/// Writes `TEMPLATE.md` unless the agent has already completed it (no
-/// `TODO:` left), so re-running finalize never overwrites finished work.
+/// A row of the template's slot table.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Slot {
+    pub name: String,
+    pub from: i64,
+    pub to: i64,
+    pub fill_with: String,
+}
+
+/// The slot rows of TEMPLATE.md, in order.
+pub fn slots(template: &str) -> Vec<Slot> {
+    let frame = |c: &str| c.trim().strip_prefix('f').and_then(|f| f.parse().ok());
+    template
+        .lines()
+        .filter(|l| l.starts_with("| ") && !l.starts_with("| slot"))
+        .filter_map(|l| {
+            let cells: Vec<&str> = l.trim().trim_matches('|').split(" | ").collect();
+            Some(Slot {
+                name: cells.first()?.trim().to_string(),
+                from: frame(cells.get(1)?)?,
+                to: frame(cells.get(2)?)?,
+                fill_with: cells.last()?.trim().to_string(),
+            })
+        })
+        .collect()
+}
+
+/// The text under TEMPLATE.md's `## Rules` heading.
+pub fn rules(template: &str) -> String {
+    let Some(at) = template.find("## Rules") else {
+        return String::new();
+    };
+    let body = &template[at..];
+    let body = &body[body.find('\n').map_or(body.len(), |n| n + 1)..];
+    let end = body.find("\n## ").unwrap_or(body.len());
+    body[..end].trim().to_string()
+}
+
+const TODO_RULES: &str = "TODO: the rules an editor follows";
+
+/// `fresh` with the agent's writing from `existing` carried over: each
+/// slot's "fill with" where a slot of the same name and frames is filled
+/// in, and the rules once written. Measured lines always come from
+/// `fresh`; a slot whose frames changed comes back as `TODO`.
+pub fn carry_over(fresh: &str, existing: &str) -> String {
+    let old = slots(existing);
+    let mut out: Vec<String> = fresh
+        .lines()
+        .map(|line| {
+            let Some(slot) = slots(line).into_iter().next() else {
+                return line.to_string();
+            };
+            match old.iter().find(|o| {
+                (o.name.as_str(), o.from, o.to) == (slot.name.as_str(), slot.from, slot.to)
+                    && o.fill_with != "TODO"
+            }) {
+                Some(o) => {
+                    let keep = line.trim_end().strip_suffix("| TODO |").unwrap_or(line);
+                    format!("{keep}| {} |", o.fill_with)
+                }
+                None => line.to_string(),
+            }
+        })
+        .collect();
+    let written = rules(existing);
+    if !written.is_empty() && !written.starts_with(TODO_RULES) {
+        if let Some(at) = out.iter().position(|l| l.starts_with(TODO_RULES)) {
+            out[at] = written;
+        }
+    }
+    let mut doc = out.join("\n");
+    doc.push('\n');
+    doc
+}
+
+/// Writes `TEMPLATE.md` from the measurements, keeping what the agent
+/// already wrote in it (see [`carry_over`]).
 pub fn run(run_dir: &Path, inputs: &Inputs) -> io::Result<PathBuf> {
     let path = run_dir.join(TEMPLATE_FILE);
-    let finished = fs::read_to_string(&path).is_ok_and(|t| !t.contains("TODO:"));
-    if !finished {
-        fs::write(&path, render(inputs))?;
-    }
+    let fresh = render(inputs);
+    let doc = match fs::read_to_string(&path) {
+        Ok(existing) => carry_over(&fresh, &existing),
+        Err(_) => fresh,
+    };
+    fs::write(&path, doc)?;
     Ok(path)
 }
 
@@ -299,6 +376,54 @@ mod tests {
         // cuts-3's judgement overrides shot 1's camera to "static".
         let doc = render(&judged());
         assert!(doc.contains("- camera, shot 1: static\n"), "{doc}");
+    }
+
+    fn finished(doc: &str) -> String {
+        doc.replace(
+            "| a-roll | C1 ×1 | TODO |",
+            "| a-roll | C1 ×1 | the first item, centred |",
+        )
+        .replace(
+            &doc[doc.find("TODO: the rules").unwrap()..],
+            "- Cut on the beat.\n- One word per caption.\n",
+        )
+    }
+
+    #[test]
+    fn the_agents_fill_with_and_rules_survive_a_fresh_render() {
+        let fresh = render(&judged());
+        let doc = carry_over(&fresh, &finished(&fresh));
+        assert!(
+            doc.contains(
+                "| HOOK | f0 | f60 | 2.000s | 1 | a-roll | C1 ×1 | the first item, centred |"
+            ),
+            "{doc}"
+        );
+        assert!(doc.contains(
+            "| BUILD | f60 | f120 | 2.000s | 2 | a-roll | C1 ×1 | the first item, centred |"
+        ));
+        assert!(
+            doc.ends_with(
+                "## Rules  <!-- judgement -->\n- Cut on the beat.\n- One word per caption.\n"
+            ),
+            "{doc}"
+        );
+        assert!(
+            doc.contains("| PAYOFF | f120 | f180 |") && doc.contains("| none | TODO |"),
+            "unfilled stays TODO"
+        );
+    }
+
+    #[test]
+    fn measured_lines_are_refreshed_and_moved_slots_return_to_todo() {
+        let fresh = render(&judged());
+        let stale = finished(&fresh)
+            .replace("captions: 2 in", "captions: 97 in")
+            .replace("| BUILD | f60 | f120 |", "| BUILD | f50 | f120 |");
+        let doc = carry_over(&fresh, &stale);
+        assert!(doc.contains("captions: 2 in"), "{doc}");
+        let build = doc.lines().find(|l| l.starts_with("| BUILD")).unwrap();
+        assert!(build.ends_with("| TODO |"), "{build}");
     }
 
     #[test]
