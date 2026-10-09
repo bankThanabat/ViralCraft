@@ -22,4 +22,6 @@ template = { path = "../../crates/template" }
 which = "8"
 
 [dev-dependencies]
+image = { version = "0.25", default-features = false, features = ["png"] }
+serde.workspace = true
 tempfile = "3"

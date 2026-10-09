@@ -349,7 +349,7 @@ with `unknown` for unmeasured values and `<!-- judgement -->` slots holding
 
 **Estimated scope:** M
 
-## Task 13: captions.vtt and captions.ass writers ✅ done (burn-in check pending)
+## Task 13: captions.vtt and captions.ass writers ✅ done
 
 **Description:** `crates/exports` writes WebVTT with inline word timestamps and
 `line`/`position`/`align` cue settings from the anchor, and ASS with one style
@@ -359,7 +359,7 @@ per caption style, `PlayResX/Y` at source size, `\an`, `\pos`, `\fad` or
 **Acceptance criteria:**
 - [x] Snapshot tests for both files from the `cuts-3` JSON
 - [x] `captions.vtt` parses with a strict WebVTT parser (a small in-crate validator covering the grammar we emit)
-- [ ] (pending: Homebrew ffmpeg has no libass; needs `ffmpeg-full`, user to decide) Ignored test: `ffmpeg -vf ass=captions.ass` onto `cuts-3.mp4`, OCR the result, each word's box within 0.02 of `inspect.json`
+- [x] Ignored test: `ffmpeg -vf ass=captions.ass` onto `cuts-3.mp4`, OCR the result, each word's box within 0.02 of `inspect.json`
 
 **Verification:**
 - [x] Tests pass: `cargo test -p exports`
@@ -462,7 +462,7 @@ line per command.
 - [x] Full pipeline on `cuts-3.mp4` and on the real clip (real clip also judged and finalized: 0 TODO in EDIT-SPEC.md and TEMPLATE.md)
 - [x] OTIO round-trips in Python
 - [ ] OTIO imports into FilmCraft (FilmCraft not built on this machine; user to decide)
-- [ ] ASS burn-in check (needs ffmpeg built with libass, e.g. Homebrew `ffmpeg-full`; user to decide)
+- [x] ASS burn-in check: fixture within 0.008 of the frame; real-clip preview shows positions and colours right, font size an estimate (tasks/notes.md)
 - [ ] Review with human before proceeding
 
 ## Phase 4: Skill and docs

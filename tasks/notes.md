@@ -68,3 +68,19 @@ On the clip, 15 of 35 captions changed: about ten clear fixes, a few new
 small errors (a stray "GAOOW" line, a leading dot, "Wanna"). A lone "I" is
 still dropped in places ("butdon't", "Me if had"); that is left to the
 agent's review of the frames. Cost: about 4 s more on the 56 s clip.
+
+## Caption burn-in check (Phase 3 checkpoint)
+
+Fixture: captions.ass burned onto text-free cuts-3 scenes with libass and
+read back with ocrs lands within 0.008 of the frame of the original
+positions (ONE -0.001/+0.005, TWO -0.001/-0.001, THREE -0.002/-0.008).
+
+Real clip (`viralcraft preview`, our captions over the originals):
+- the boxed title matches exactly: position, box, colour and size
+- dialogue lines land in the right place and colour, but the font differs
+  (Arial placeholder; the original is a bold italic we do not detect)
+- font size is an estimate from OCR line height (line / 0.75): the cat-scene
+  line came out visibly too large and the watermark too small
+
+Follow-ups worth doing: estimate size from box width with the chosen
+substitute font, and detect italics from glyph slant.

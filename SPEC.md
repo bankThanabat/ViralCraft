@@ -84,6 +84,8 @@ viralcraft analyze [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
 viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
                                         # merge into EDIT-SPEC.md, write OTIO
                                         # metadata, captions.ass/.vtt, TEMPLATE.md
+viralcraft preview <RUN_DIR>            # preview.mp4: source with captions.ass burned on
+                                        # (needs ffmpeg with libass; doctor offers it)
 viralcraft clean <RUN_DIR>              # delete frames/ and source.cfr.mp4
 viralcraft shots <RUN_DIR>              # run one stage on an existing run dir;
 viralcraft audio <RUN_DIR>              # same for ingest, inspect, editspec, exports

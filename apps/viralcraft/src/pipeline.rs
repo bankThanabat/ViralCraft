@@ -105,3 +105,53 @@ pub fn clean(run_dir: &Path) -> anyhow::Result<(Value, bool)> {
     }
     Ok((json!({ "ok": true, "removed": removed }), true))
 }
+
+pub const PREVIEW_FILE: &str = "preview.mp4";
+
+/// Writes `preview.mp4`: the source with `captions.ass` burned on top, so
+/// any mismatch with the original captions shows as doubled or offset
+/// text. Needs an ffmpeg with libass.
+pub fn preview(run_dir: &Path) -> anyhow::Result<(Value, bool)> {
+    let Some(ffmpeg) = doctor_cmd::find_preview_ffmpeg() else {
+        anyhow::bail!(
+            "previews need an ffmpeg with libass: run `viralcraft doctor --install` (on macOS: brew install ffmpeg-full)"
+        );
+    };
+    for needed in [ingest::SOURCE_FILE, exports::ASS_FILE] {
+        if !run_dir.join(needed).exists() {
+            anyhow::bail!(
+                "{} not found; run `viralcraft analyze` first",
+                run_dir.join(needed).display()
+            );
+        }
+    }
+    let program = ffmpeg.to_string_lossy().into_owned();
+    timed("preview", || {
+        Ok(model::tools::run_in(
+            run_dir,
+            &program,
+            &[
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                ingest::SOURCE_FILE,
+                "-vf",
+                &format!("ass={}", exports::ASS_FILE),
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "20",
+                "-c:a",
+                "copy",
+                PREVIEW_FILE,
+            ],
+        )?)
+    })?;
+    Ok((
+        json!({ "ok": true, "files": [run_dir.join(PREVIEW_FILE)] }),
+        true,
+    ))
+}
