@@ -71,8 +71,8 @@ fn dominant(pixels: &[[u8; 3]]) -> Vec<Swatch> {
     let mut bins: HashMap<[u8; 3], ([u64; 3], u64)> = HashMap::new();
     for p in pixels {
         let e = bins.entry(p.map(|c| c >> 4)).or_insert(([0; 3], 0));
-        for c in 0..3 {
-            e.0[c] += u64::from(p[c]);
+        for (sum, &channel) in e.0.iter_mut().zip(p) {
+            *sum += u64::from(channel);
         }
         e.1 += 1;
     }
@@ -103,7 +103,7 @@ fn dominant(pixels: &[[u8; 3]]) -> Vec<Swatch> {
             None => merged.push((color, count)),
         }
     }
-    merged.sort_by(|a, b| b.1.cmp(&a.1));
+    merged.sort_by_key(|m| std::cmp::Reverse(m.1));
     let total = pixels.len() as f64;
     merged
         .into_iter()
