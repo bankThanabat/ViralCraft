@@ -1,0 +1,8 @@
+[
+  {
+    "name": "tiktok-2026-conservative",
+    "source": "Conservative production baseline from measured TikTok overlay files; see SPEC.md 'Safe zones'.",
+    "width": 1080, "height": 1920,
+    "top": 150, "right": 165, "bottom": 320, "left": 60
+  }
+]

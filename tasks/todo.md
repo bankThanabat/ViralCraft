@@ -49,7 +49,7 @@ asks per item on stderr and runs the command on yes. Never installs otherwise.
 
 **Estimated scope:** M
 
-## Task 3: ingest resolves input, normalizes to CFR, writes probe.json
+## Task 3: ingest resolves input, normalizes to CFR, writes probe.json ✅ done
 
 **Description:** `crates/ingest` resolves the input (explicit path, else the
 single file in `--inbox`, else asks on stderr and reads a path from stdin),
@@ -59,13 +59,13 @@ size, aspect, audio offset and the named safe-zone profile. Adds the shared
 `tools::run` subprocess helper.
 
 **Acceptance criteria:**
-- [ ] ffprobe JSON parsed from a string literal yields `Fps { num: 30000, den: 1001 }`, 1080x1920, aspect `9:16`, and the audio start offset
-- [ ] With two files in `inbox/`, resolution asks instead of picking one
-- [ ] `probe.json` contains `safe_zone: { profile: "tiktok-2026-conservative", top, right, bottom, left }` in normalized units
+- [x] ffprobe JSON parsed from a string literal yields `Fps { num: 30000, den: 1001 }`, 1080x1920, aspect `9:16`, and the audio start offset
+- [x] With two files in `inbox/`, resolution asks instead of picking one
+- [x] `probe.json` contains `safe_zone: { profile: "tiktok-2026-conservative", top, right, bottom, left }` in normalized units
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p ingest`
-- [ ] Manual check: `viralcraft ingest /tmp/vc-verify/media/speech.wav` fails with a clear "no video stream" error
+- [x] Tests pass: `cargo test -p ingest`
+- [x] Manual check: `viralcraft ingest /tmp/vc-verify/media/speech.wav` fails with a clear "no video stream" error
 
 **Dependencies:** 2
 

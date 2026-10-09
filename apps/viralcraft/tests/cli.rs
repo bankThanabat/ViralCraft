@@ -1,10 +1,11 @@
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn viralcraft(args: &[&str], models_dir: &Path) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_viralcraft"))
         .args(args)
         .env("VIRALCRAFT_MODELS", models_dir)
+        .stdin(Stdio::null())
         .output()
         .expect("the test binary is built by cargo before tests run")
 }
@@ -44,4 +45,31 @@ fn unknown_subcommand_fails_with_usage_on_stderr() {
     assert!(!out.status.success());
     assert!(out.stdout.is_empty());
     assert!(String::from_utf8_lossy(&out.stderr).contains("Usage"));
+}
+
+#[test]
+fn ingest_with_an_empty_inbox_asks_then_fails_with_a_json_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let inbox = dir.path().join("inbox");
+    std::fs::create_dir(&inbox).unwrap();
+    let out = viralcraft(
+        &[
+            "ingest",
+            "--inbox",
+            inbox.to_str().unwrap(),
+            "--out",
+            dir.path().join("out").to_str().unwrap(),
+        ],
+        dir.path(),
+    );
+
+    assert_eq!(out.status.code(), Some(1));
+    let summary = single_json_line(&out.stdout);
+    assert_eq!(summary["command"], "ingest");
+    assert_eq!(summary["ok"], false);
+    assert!(summary["error"]
+        .as_str()
+        .unwrap()
+        .contains("no input video"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("No video found"));
 }

@@ -12,6 +12,7 @@ clap.workspace = true
 serde_json.workspace = true
 model.workspace = true
 doctor = { path = "../../crates/doctor" }
+ingest = { path = "../../crates/ingest" }
 which = "8"
 
 [dev-dependencies]

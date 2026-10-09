@@ -91,7 +91,8 @@ viralcraft audio <RUN_DIR>              # same for ingest, inspect, editspec, ex
 
 Every subcommand prints a one-line JSON summary on stdout (paths written,
 counts) and human logs on stderr, so an agent can parse the result and a
-person can read the progress.
+person can read the progress. Failures follow the same contract:
+`{"command": ..., "ok": false, "error": "..."}` on stdout and exit code 1.
 
 ## Project Structure
 
@@ -573,6 +574,11 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
   can be burned in and checked visually.
 - **Voiceover vs on-camera is a judgement field**, not an `audio` measurement.
   `audio` reports speech spans; the agent labels them.
+- **VFR is detected from packet timestamps**, not ffprobe's rate fields,
+  which can report equal real and average rates for a jittered file. A file
+  is VFR when any frame interval is more than a quarter frame off the nominal
+  rate; it is then re-encoded at the nearest standard rate. CFR files are
+  stream-copied. Decided 2026-10-09 in task 3.
 - **Speed ramps are `unknown` in v1.** Constant per-shot speed is measured;
   ramps are left to the agent and the editor.
 

@@ -1,4 +1,4 @@
-use std::io::{self, BufRead, Write};
+use std::io;
 use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context};
@@ -27,7 +27,7 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
         );
     }
 
-    let summary = json!({ "command": "doctor", "ok": report.ok, "items": report.items });
+    let summary = json!({ "ok": report.ok, "items": report.items });
     Ok((summary, report.ok))
 }
 
@@ -47,13 +47,7 @@ fn print_report(report: &Report) {
 
 fn ask(item: &Item) -> bool {
     let fix = item.fix.as_deref().unwrap_or_default();
-    eprint!("Install {} with `{fix}`? [y/N] ", item.name);
-    let _ = io::stderr().flush();
-    let mut answer = String::new();
-    if io::stdin().lock().read_line(&mut answer).is_err() {
-        return false;
-    }
-    matches!(answer.trim(), "y" | "Y" | "yes")
+    crate::prompt::confirm(&format!("Install {} with `{fix}`? [y/N]", item.name))
 }
 
 /// Runs a fix through the platform shell. The child's stdout is sent to our
