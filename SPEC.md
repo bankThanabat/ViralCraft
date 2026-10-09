@@ -281,7 +281,8 @@ What each section borrows:
   `Shadow`, `Alignment` an1..an9, margins) and its animation tags for the
   animation column (`\fad`, `\move`, `\t(\fscx\fscy)`, `\k` karaoke
   centiseconds per word). `captions.ass` is the same data in that format, so
-  `ffmpeg -vf ass=captions.ass` burns it onto any video for a visual check.
+  `ffmpeg -vf ass=captions.ass` burns it onto any video for a visual check
+  (needs an ffmpeg built with libass; Homebrew's `ffmpeg` is not, `ffmpeg-full` is).
   Word timing in `captions.vtt` uses inline cue timestamps
   (`<00:00:01.200>word`), which is how WebVTT does word highlighting.
   Font family is reported `unknown` with an agent-chosen substitute; OCR cannot

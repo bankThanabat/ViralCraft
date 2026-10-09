@@ -349,7 +349,7 @@ with `unknown` for unmeasured values and `<!-- judgement -->` slots holding
 
 **Estimated scope:** M
 
-## Task 13: captions.vtt and captions.ass writers
+## Task 13: captions.vtt and captions.ass writers ✅ done (burn-in check pending)
 
 **Description:** `crates/exports` writes WebVTT with inline word timestamps and
 `line`/`position`/`align` cue settings from the anchor, and ASS with one style
@@ -357,12 +357,12 @@ per caption style, `PlayResX/Y` at source size, `\an`, `\pos`, `\fad` or
 `\t(\fscx\fscy)` for animations, and `\k` per word when word timing exists.
 
 **Acceptance criteria:**
-- [ ] Snapshot tests for both files from the `cuts-3` JSON
-- [ ] `captions.vtt` parses with a strict WebVTT parser (a small in-crate validator covering the grammar we emit)
-- [ ] Ignored test: `ffmpeg -vf ass=captions.ass` onto `cuts-3.mp4`, OCR the result, each word's box within 0.02 of `inspect.json`
+- [x] Snapshot tests for both files from the `cuts-3` JSON
+- [x] `captions.vtt` parses with a strict WebVTT parser (a small in-crate validator covering the grammar we emit)
+- [ ] (pending: Homebrew ffmpeg has no libass; needs `ffmpeg-full`, user to decide) Ignored test: `ffmpeg -vf ass=captions.ass` onto `cuts-3.mp4`, OCR the result, each word's box within 0.02 of `inspect.json`
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p exports` and `-- --ignored`
+- [x] Tests pass: `cargo test -p exports`
 
 **Dependencies:** 8
 

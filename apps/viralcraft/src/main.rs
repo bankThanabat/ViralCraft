@@ -43,6 +43,8 @@ enum Command {
     Audio { run_dir: PathBuf },
     /// Measure captions (and later motion, look, overlays) from the frames.
     Inspect { run_dir: PathBuf },
+    /// Write captions.vtt and captions.ass from the measurements.
+    Exports { run_dir: PathBuf },
     /// Write EDIT-SPEC.md from the measurements in a run directory.
     Editspec { run_dir: PathBuf },
     /// Detect cuts, dissolves and flashes; extract every frame (720 px short side).
@@ -63,6 +65,7 @@ impl Command {
             Command::Audio { .. } => "audio",
             Command::Inspect { .. } => "inspect",
             Command::Editspec { .. } => "editspec",
+            Command::Exports { .. } => "exports",
         }
     }
 }
@@ -143,6 +146,10 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                 }),
                 true,
             ))
+        }
+        Command::Exports { run_dir } => {
+            let files = exports::run(&run_dir)?;
+            Ok((json!({ "ok": true, "files": files }), true))
         }
         Command::Editspec { run_dir } => {
             let path = editspec::run(&run_dir)?;

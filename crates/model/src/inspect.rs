@@ -215,3 +215,49 @@ pub struct ShotLook {
     pub shot: u32,
     pub look: Look,
 }
+
+/// Colours closer than this (Euclidean RGB) are the same style colour.
+const SAME_COLOUR: f64 = 32.0;
+
+fn rgb(hex: &str) -> Option<[f64; 3]> {
+    let h = hex.strip_prefix('#')?;
+    let c = |i: usize| u8::from_str_radix(h.get(i..i + 2)?, 16).ok().map(f64::from);
+    Some([c(0)?, c(2)?, c(4)?])
+}
+
+fn same_colour(a: Option<&str>, b: Option<&str>) -> bool {
+    match (a.and_then(rgb), b.and_then(rgb)) {
+        (Some(x), Some(y)) => {
+            x.iter()
+                .zip(y)
+                .map(|(p, q)| (p - q).powi(2))
+                .sum::<f64>()
+                .sqrt()
+                < SAME_COLOUR
+        }
+        (None, None) => true,
+        _ => false,
+    }
+}
+
+/// Captions that look alike share a style: same fill, outline and box
+/// colours within a tolerance. Size and case are not part of it: OCR line
+/// height varies with the letters in a word (34 to 58 px for one font on
+/// the first real clip), and creators capitalise single words for
+/// emphasis. Position is per caption.
+pub fn caption_styles(caps: &[CaptionEvent]) -> Vec<(String, Vec<usize>)> {
+    let mut styles: Vec<(String, Vec<usize>)> = Vec::new();
+    for (i, c) in caps.iter().enumerate() {
+        let found = styles.iter_mut().find(|(_, members)| {
+            let first = &caps[members[0]];
+            same_colour(Some(&first.fill), Some(&c.fill))
+                && same_colour(first.outline.as_deref(), c.outline.as_deref())
+                && same_colour(first.box_color.as_deref(), c.box_color.as_deref())
+        });
+        match found {
+            Some((_, members)) => members.push(i),
+            None => styles.push((format!("C{}", styles.len() + 1), vec![i])),
+        }
+    }
+    styles
+}

@@ -369,6 +369,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "exports"
+version = "0.1.0"
+dependencies = [
+ "insta",
+ "model",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1185,6 +1197,7 @@ dependencies = [
  "clap",
  "doctor",
  "editspec",
+ "exports",
  "ingest",
  "inspect",
  "model",

@@ -1,0 +1,17 @@
+---
+source: crates/exports/src/vtt.rs
+expression: "write(&probe, &audio, &inspect)"
+---
+WEBVTT
+
+c1
+00:00:00.000 --> 00:00:02.000 line:17.8%,center position:49.9%,center size:19.1% align:center
+ONE
+
+c2
+00:00:02.000 --> 00:00:04.000 line:49.7%,center position:49.8%,center size:21.3% align:center
+TWO
+
+c3
+00:00:04.000 --> 00:00:06.000 line:79.8%,center position:49.7%,center size:30.0% align:center
+THREE
