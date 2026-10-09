@@ -2,15 +2,17 @@
 //! OpenTimelineIO timeline.
 
 pub mod ass;
+pub mod otio;
 pub mod vtt;
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use model::{Audio, Inspect, Probe};
+use model::{Audio, Inspect, Probe, Shots};
 
 pub const VTT_FILE: &str = "captions.vtt";
 pub const ASS_FILE: &str = "captions.ass";
+pub const OTIO_FILE: &str = "timeline.otio";
 
 #[derive(Debug, thiserror::Error)]
 pub enum ExportError {
@@ -26,14 +28,21 @@ pub enum ExportError {
     },
 }
 
-/// Writes `captions.vtt` and `captions.ass` from the run's measurements.
+/// Writes `captions.vtt`, `captions.ass` and `timeline.otio` from the
+/// run's measurements.
 pub fn run(run_dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
     let probe: Probe = read_json(&run_dir.join("probe.json"))?;
+    let shots: Shots = read_json(&run_dir.join("shots.json"))?;
     let audio: Audio = read_json(&run_dir.join("audio.json"))?;
     let inspect: Inspect = read_json(&run_dir.join("inspect.json"))?;
+    let timeline = otio::write(&probe, &shots, &audio, &inspect);
     let files = [
         (run_dir.join(VTT_FILE), vtt::write(&probe, &audio, &inspect)),
         (run_dir.join(ASS_FILE), ass::write(&probe, &inspect)),
+        (
+            run_dir.join(OTIO_FILE),
+            serde_json::to_string_pretty(&timeline).expect("the timeline is plain JSON"),
+        ),
     ];
     let mut written = Vec::new();
     for (path, text) in files {

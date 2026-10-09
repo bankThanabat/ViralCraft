@@ -370,7 +370,7 @@ per caption style, `PlayResX/Y` at source size, `\an`, `\pos`, `\fad` or
 
 **Estimated scope:** M
 
-## Task 14: timeline.otio writer
+## Task 14: timeline.otio writer ✅ done
 
 **Description:** Serde structs for the OTIO 0.17 schemas used (Timeline.1,
 Stack.1, Track.1, Clip.2, Gap.1, Transition.1, LinearTimeWarp.1,
@@ -380,12 +380,12 @@ RationalTime.1, TimeRange.1), the track layout from `SPEC.md` "OTIO layout",
 cross shots.
 
 **Acceptance criteria:**
-- [ ] Snapshot of `timeline.otio` for `cuts-3` JSON
-- [ ] A transition at f54 with 8 frames split 4/4 serializes as `in_offset` 4 and `out_offset` 4 at the source rate
-- [ ] Ignored test: `python3 -c "import opentimelineio"` round-trip (read, write, read) preserves clip count, source ranges, transition offsets and marker ranges
+- [x] Snapshot of `timeline.otio` for `cuts-3` JSON
+- [x] A transition at f54 with 8 frames split 4/4 serializes as `in_offset` 4 and `out_offset` 4 at the source rate
+- [x] Ignored test: `python3 -c "import opentimelineio"` round-trip (read, write, read) preserves clip count, source ranges, transition offsets and marker ranges
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p exports` and `-- --ignored` (skips with a message if the Python package is absent)
+- [x] Tests pass: `cargo test -p exports` and `-- --ignored` (skips with a message if the Python package is absent)
 - [ ] Manual check at the checkpoint: import into FilmCraft
 
 **Dependencies:** 7, 11

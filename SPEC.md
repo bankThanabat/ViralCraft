@@ -404,8 +404,11 @@ the matching OTIO clip, marker or transition, and emits TEMPLATE.md.
 `timeline.otio` follows what FilmCraft writes (`crates/interchange/src/otio.rs`
 in that repo), so a FilmCraft import is the reference check:
 
-- `Timeline.1` → `Stack.1` → tracks bottom to top: `V1 shots`, `V2 captions`,
-  `V3 overlays`, then `A1 speech`, `A2 music`, `A3 sfx`.
+- `Timeline.1` → `Stack.1` → tracks bottom to top: `V1 shots`, then
+  `captions 1..n` and `overlays` (one track per lane where items overlap, as
+  an editor stacks them), then `A1 speech`, `A2 music`, `sounds 1..n`.
+  Field-for-field what OTIO 0.18.1 writes; round-tripped through the Python
+  reference library in an ignored test (`OTIO_PYTHON`).
 - Shots are `Clip.2` with `ExternalReference.1` to `source.cfr.mp4`,
   `source_range` in RationalTime at the source rate, and
   `media_references: {"DEFAULT_MEDIA": ...}` with
