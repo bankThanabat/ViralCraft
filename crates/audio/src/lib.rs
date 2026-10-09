@@ -1,12 +1,13 @@
 //! `audio`: words with timing from whisper, plus beats, tempo and onsets.
 
+pub mod rhythm;
 pub mod words;
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use model::tools::{self, ToolError};
-use model::{Audio, Fps, Probe, RationalTime, Word};
+use model::{Audio, AudioEvent, Fps, Probe, RationalTime, Tempo, TimeRange, Word};
 use whisper_rs::{
     DtwMode, DtwModelPreset, DtwParameters, FullParams, SamplingStrategy, WhisperContext,
     WhisperContextParameters,
@@ -16,6 +17,8 @@ pub const AUDIO_FILE: &str = "audio.json";
 pub const WHISPER_MODEL: &str = "ggml-tiny.en.bin";
 /// Words closer than this belong to one speech span.
 const SPEECH_GAP_S: f64 = 0.5;
+/// Tempo confidence needed to call a stretch music.
+const MUSIC_CONFIDENCE: f64 = 0.5;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AudioError {
@@ -44,18 +47,45 @@ pub enum AudioError {
 /// Reads `probe.json`, transcribes the source's audio, writes `audio.json`.
 pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
     let probe: Probe = read_json(&run_dir.join(ingest::PROBE_FILE))?;
-    let words = match &probe.audio {
-        None => Vec::new(),
+    let rate = probe.rate;
+    let (words, rhythm) = match &probe.audio {
+        None => (Vec::new(), rhythm::analyze(&[], 16_000)),
         Some(info) => {
             let samples = extract_16k_mono(run_dir, &probe.file)?;
-            transcribe(&samples, probe.rate, info.offset)?
+            let words = transcribe(&samples, rate, info.offset)?;
+            (words, rhythm::analyze(&samples, 16_000))
         }
+    };
+    let offset_s = probe.audio.as_ref().map_or(0.0, |a| a.offset.to_seconds());
+    let event = |e: &rhythm::Event| AudioEvent {
+        time: RationalTime::from_seconds(e.time + offset_s, rate),
+        confidence: e.confidence,
+    };
+    let beats: Vec<AudioEvent> = rhythm.beats.iter().map(event).collect();
+    let music = match (beats.first(), beats.last()) {
+        (Some(first), Some(last)) if rhythm.tempo.confidence >= MUSIC_CONFIDENCE => {
+            let period = RationalTime::from_seconds(60.0 / rhythm.tempo.bpm, rate).value;
+            let end = (last.time.value + period).min(probe.frames);
+            vec![TimeRange::from_frames(
+                first.time.value,
+                end - first.time.value,
+                rate,
+            )]
+        }
+        _ => Vec::new(),
     };
     let audio = Audio {
         version: 1,
-        rate: probe.rate,
+        rate,
         speech: words::speech_spans(&words, SPEECH_GAP_S),
         words,
+        tempo: Tempo {
+            bpm: rhythm.tempo.bpm,
+            confidence: rhythm.tempo.confidence,
+        },
+        beats,
+        onsets: rhythm.onsets.iter().map(event).collect(),
+        music,
     };
     let out = run_dir.join(AUDIO_FILE);
     let json = serde_json::to_string_pretty(&audio).expect("Audio always serializes");

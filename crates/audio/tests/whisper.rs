@@ -49,3 +49,29 @@ fn speech_fixture_words_start_within_3_frames_of_ground_truth() {
     }
     eprintln!("worst word start error: {worst} frames");
 }
+
+#[test]
+#[ignore = "needs ffmpeg and the whisper model"]
+fn cuts_3_click_track_gives_120_bpm_and_beats_every_15_frames() {
+    let out = tempfile::tempdir().unwrap();
+    let run_dir = ingest::run(
+        &fixtures().join("cuts-3.mp4"),
+        out.path(),
+        model::probe::DEFAULT_SAFE_ZONE,
+    )
+    .unwrap();
+    let a = audio::run(&run_dir).unwrap();
+
+    assert!((a.tempo.bpm - 120.0).abs() <= 1.0, "bpm {}", a.tempo.bpm);
+    assert!(a.beats.len() >= 10, "{} beats", a.beats.len());
+    for b in &a.beats {
+        let off = (b.time.value as f64 / 15.0).round() * 15.0 - b.time.value as f64;
+        assert!(
+            off.abs() <= 2.0,
+            "beat at f{} is {off} frames off the 0.5 s grid",
+            b.time.value
+        );
+    }
+    assert_eq!(a.music.len(), 1, "one music span over the click track");
+    assert!(a.words.is_empty());
+}

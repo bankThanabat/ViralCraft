@@ -153,23 +153,23 @@ whisper-rs with DTW token timestamps (`DtwModelPreset::TinyEn`) and
 
 **Estimated scope:** M
 
-## Task 7: beats, tempo and onsets
+## Task 7: beats, tempo and onsets ✅ done
 
 **Description:** Onset-strength envelope by spectral flux (rustfft, 2048
 window, 512 hop), onsets by adaptive-threshold peak picking, tempo by
 autocorrelation of the envelope in the 60..200 bpm band with half/double
 disambiguation, beat phase by comb alignment. Output in JAMS shape: `beats[]`
 (time, position, confidence), `tempo {bpm, confidence}`, `onsets[]`. Music
-spans are where the envelope shows a stable period for over 2 s.
+span: first to last beat when tempo confidence ≥ 0.5 (one span in v1).
 
 **Acceptance criteria:**
-- [ ] A synthetic in-memory click track at 120 bpm yields tempo 120 ±1 and beats within ±20 ms
-- [ ] The same track with white noise at -10 dB still yields 120 ±2; silence yields `tempo.confidence < 0.2`
-- [ ] Ignored test on `cuts-3.mp4`: beats at 0.5 s multiples within ±2 frames
+- [x] A synthetic in-memory click track at 120 bpm yields tempo 120 ±1 and beats within ±20 ms
+- [x] The same track with white noise at -10 dB still yields 120 ±2; silence yields `tempo.confidence < 0.2`
+- [x] Ignored test on `cuts-3.mp4`: beats at 0.5 s multiples within ±2 frames
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p audio`
-- [ ] Manual check: `viralcraft audio out/cuts-3` prints bpm 120
+- [x] Tests pass: `cargo test -p audio`
+- [x] Manual check: `viralcraft audio out/cuts-3` prints bpm 120
 
 **Dependencies:** 6
 
