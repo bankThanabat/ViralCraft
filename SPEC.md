@@ -579,6 +579,13 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
   is VFR when any frame interval is more than a quarter frame off the nominal
   rate; it is then re-encoded at the nearest standard rate. CFR files are
   stream-copied. Decided 2026-10-09 in task 3.
+- **Word timing rule.** Measured on `speech.wav` against ground truth:
+  whisper's DTW time marks a word's end (about 0.1 s late on average), and
+  token `t0` is a good start that sometimes drifts early into the previous
+  word. A word therefore ends at its latest DTW time and starts at `t0`, never
+  before the previous word's end. Worst start error on the fixture is 3
+  frames (100 ms) at 30 fps, so word-highlight timing is good to about 3
+  frames with the tiny model. Decided 2026-10-09 in task 6.
 - **Speed ramps are `unknown` in v1.** Constant per-shot speed is measured;
   ramps are left to the agent and the editor.
 

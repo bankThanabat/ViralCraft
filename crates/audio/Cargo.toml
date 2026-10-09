@@ -1,0 +1,20 @@
+[package]
+name = "audio"
+description = "Speech transcription with word timing, and beat, tempo and onset detection"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+doctor = { path = "../doctor" }
+hound = "3.5"
+ingest = { path = "../ingest" }
+model.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+whisper-rs = "0.16"
+
+[dev-dependencies]
+tempfile = "3"

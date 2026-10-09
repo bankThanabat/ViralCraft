@@ -130,7 +130,7 @@ or a one-frame luma spike), and extracts every frame at half resolution into
 
 **Estimated scope:** M
 
-## Task 6: audio words via whisper-rs adapter
+## Task 6: audio words via whisper-rs adapter ✅ done
 
 **Description:** `crates/audio` extracts 16 kHz mono PCM with ffmpeg, runs
 whisper-rs with DTW token timestamps (`DtwModelPreset::TinyEn`) and
@@ -139,13 +139,13 @@ whisper-rs with DTW token timestamps (`DtwModelPreset::TinyEn`) and
 `confidence`). Speech spans are the union of words with gaps under 0.5 s.
 
 **Acceptance criteria:**
-- [ ] The adapter, given hand-built token lists (`" Stop"`, `" scrolling"`, `"."`, with t0/t1/t_dtw), groups punctuation onto the previous word and converts centiseconds to RationalTime at the probe rate
-- [ ] Tokens with `t_dtw == -1` fall back to segment-proportional timing and are marked `confidence: 0.3`
-- [ ] Ignored smoke test on `speech.wav`: the 11 words match the fixture text, each start within ±100 ms of `fixtures.json`
+- [x] The adapter, given hand-built token lists (`" Stop"`, `" scrolling"`, `"."`, with t0/t1/t_dtw), groups punctuation onto the previous word and converts centiseconds to RationalTime at the probe rate
+- [x] Tokens with `t_dtw == -1` fall back to segment-proportional timing and are marked `confidence: 0.3`
+- [x] Ignored smoke test on `speech.wav`: the 11 words match the fixture text, each start within 3 frames (100 ms at 30 fps) of `speech.json`
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p audio` and `cargo test -p audio -- --ignored`
-- [ ] Build succeeds: `cargo build --release`
+- [x] Tests pass: `cargo test -p audio` and `cargo test -p audio -- --ignored`
+- [x] Build succeeds: `cargo build --release`
 
 **Dependencies:** 3, 4
 

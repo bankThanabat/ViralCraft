@@ -39,6 +39,8 @@ enum Command {
         #[arg(long, default_value = model::probe::DEFAULT_SAFE_ZONE)]
         safe_zone: String,
     },
+    /// Transcribe speech with word timing; detect beats and tempo.
+    Audio { run_dir: PathBuf },
     /// Detect cuts, dissolves and flashes; extract every frame at half size.
     Shots {
         run_dir: PathBuf,
@@ -54,6 +56,7 @@ impl Command {
             Command::Doctor { .. } => "doctor",
             Command::Ingest { .. } => "ingest",
             Command::Shots { .. } => "shots",
+            Command::Audio { .. } => "audio",
         }
     }
 }
@@ -98,6 +101,19 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                         run_dir.join(ingest::SOURCE_FILE),
                         run_dir.join(ingest::PROBE_FILE),
                     ],
+                }),
+                true,
+            ))
+        }
+        Command::Audio { run_dir } => {
+            eprintln!("audio: {}", run_dir.display());
+            let audio = audio::run(&run_dir)?;
+            Ok((
+                json!({
+                    "ok": true,
+                    "words": audio.words.len(),
+                    "speech_spans": audio.speech.len(),
+                    "files": [run_dir.join(audio::AUDIO_FILE)],
                 }),
                 true,
             ))
