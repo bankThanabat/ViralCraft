@@ -472,7 +472,7 @@ finalize) plus an optional editor step that rebuilds the format from the
 user's own clips, FilmCraft first. See the intent's amendment and SPEC.md
 "Rebuild (optional editor step)".
 
-## Task 18: assets: read the user's clips
+## Task 18: assets: read the user's clips ✅ done
 
 **Description:** `viralcraft assets <RUN_DIR> [--assets DIR]` finds the
 user's clips (`./assets/` by default; asks for a folder if it is missing or
@@ -481,13 +481,13 @@ and names sounds with the same code as `audio`, saves one thumbnail per
 clip, and writes `<RUN_DIR>/rebuild/assets.json`. Never modifies the clips.
 
 **Acceptance criteria:**
-- [ ] With an empty or missing folder it asks for one, and fails with a JSON error when there is no answer
-- [ ] On fixtures copied into a temp `assets/` (cuts-3.mp4, zoom-1.mp4, a clip made from speech.wav), assets.json lists all three with correct durations and sizes, the speech clip's words match the fixture text, and each has a thumbnail
-- [ ] Files in the assets folder are byte-identical before and after
+- [x] With an empty or missing folder it asks for one, and fails with a JSON error when there is no answer
+- [x] On fixtures copied into a temp `assets/` (cuts-3.mp4, zoom-1.mp4, a clip made from speech.wav), assets.json lists all three with correct durations and sizes, the speech clip's words match the fixture text, and each has a thumbnail
+- [x] Files in the assets folder are byte-identical before and after
 
 **Verification:**
-- [ ] Tests pass: `cargo test --workspace` and the new ignored integration test
-- [ ] Manual check: run on a folder of the user's own clips
+- [x] Tests pass: `cargo test --workspace` and the new ignored integration test
+- [x] Manual check: run on a folder of the user's own clips
 
 **Dependencies:** 17
 
@@ -506,13 +506,13 @@ look; the template's rules; and "done when" checks. Refuses while
 TEMPLATE.md still has `TODO:`.
 
 **Acceptance criteria:**
-- [ ] Refuses with a clear JSON error while TEMPLATE.md has `TODO:` or assets.json is missing
-- [ ] Snapshot of the prompt for the finished cuts-3 run with fixture assets, with and without a script
-- [ ] With a script, caption lines use it in order; without one, they come from the assets' transcripts; with neither, the prompt asks the agent to draft lines for the user to approve
-- [ ] Contains nothing FilmCraft-specific
+- [x] Refuses with a clear JSON error while TEMPLATE.md has `TODO:` or assets.json is missing
+- [x] Snapshot of the prompt for the finished cuts-3 run with fixture assets, with and without a script
+- [x] With a script, caption lines use it in order; without one, they come from the assets' transcripts; with neither, the prompt asks the agent to draft lines for the user to approve
+- [x] Contains nothing FilmCraft-specific
 
 **Verification:**
-- [ ] Tests pass: `cargo test --workspace`
+- [x] Tests pass: `cargo test --workspace`
 - [ ] Manual check: prompt for the real clip's template with sample assets reads as followable steps
 
 **Dependencies:** 18
@@ -530,8 +530,8 @@ judgement guide (what to look at for each field), hook and look vocabulary,
 and the real-clip judgement as a worked example.
 
 **Acceptance criteria:**
-- [ ] Frontmatter `name` and a `description` under 1024 characters that triggers on "analyze this viral video" and "copy this format"
-- [ ] Every required judgement field has a step saying what to look at and how to decide
+- [x] Frontmatter `name` and a `description` under 1024 characters that triggers on "analyze this viral video" and "copy this format"
+- [x] Every required judgement field has a step saying what to look at and how to decide
 - [ ] A fresh agent session with only the skill installed takes cuts-3 to a finalized run with no `TODO:` (manual)
 
 **Verification:**
@@ -557,12 +557,12 @@ filmcraft-cli and explains how to get it if missing. A reference maps each
 prompt step to FilmCraft commands, verified against FilmCraft 0.4.0.
 
 **Acceptance criteria:**
-- [ ] The command mapping is exercised by an ignored test that builds a small rebuild of cuts-3 from fixture assets through filmcraft-cli (FILMCRAFT_CLI) and checks the exported MP4's duration, size and cut points
-- [ ] Rendered frames show the caption text at the prompt's positions
+- [x] The command mapping is exercised by an ignored test that builds a small rebuild of cuts-3 from fixture assets through filmcraft-cli (FILMCRAFT_CLI) and checks the exported MP4's duration, size and cut points
+- [x] Rendered frames show the caption text at the prompt's positions
 - [ ] A fresh agent session with both skills rebuilds the real clip's format from sample assets into rebuild.mp4 (manual)
 
 **Verification:**
-- [ ] Tests pass: the ignored FilmCraft test
+- [x] Tests pass: the ignored FilmCraft test
 - [ ] Manual check: watch rebuild.mp4 next to the original
 
 **Dependencies:** 19, 20
@@ -571,15 +571,15 @@ prompt step to FilmCraft commands, verified against FilmCraft 0.4.0.
 
 **Estimated scope:** L (may split once the command mapping is known)
 
-## Task 22: ADRs and README
+## Task 22: ADRs and README ✅ done (manual README read-through is the user's)
 
 **Description:** ADRs for Rust, agent-side judgement, ffmpeg-only core,
 standards-based formats, and the optional editor step; README with install,
 doctor, analyze, review, finalize, and the optional rebuild.
 
 **Acceptance criteria:**
-- [ ] Five ADRs in `docs/adr/`
-- [ ] README commands match SPEC.md "Commands" and "Rebuild" exactly
+- [x] Five ADRs in `docs/adr/`
+- [x] README commands match SPEC.md "Commands" and "Rebuild" exactly
 
 **Verification:**
 - [ ] Manual check: a reader can go from clone to a finalized run using the README alone
