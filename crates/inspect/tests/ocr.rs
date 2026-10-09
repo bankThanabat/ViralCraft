@@ -72,3 +72,32 @@ fn cuts_3_captions_match_the_fixture() {
         result.timing.detect_ms_per_frame
     );
 }
+
+#[test]
+#[ignore = "needs ffmpeg and the ocrs models"]
+fn zoom_1_reads_as_a_100_to_120_eased_zoom() {
+    let out = tempfile::tempdir().unwrap();
+    let run_dir = ingest::run(
+        &fixtures().join("zoom-1.mp4"),
+        out.path(),
+        model::probe::DEFAULT_SAFE_ZONE,
+    )
+    .unwrap();
+    shots::run(&run_dir).unwrap();
+    let result = inspect::run(&run_dir).unwrap();
+
+    assert_eq!(result.motion.len(), 1);
+    let m = &result.motion[0];
+    let t = m.transform.as_ref().expect("textured zoom is measurable");
+    eprintln!("confidence {:.2}, scale {:?}", m.confidence, t.scale);
+    assert_eq!(t.scale.len(), 2);
+    assert_eq!((t.scale[0].t, t.scale[1].t), (0, 89));
+    assert!((t.scale[0].s - 100.0).abs() <= 1.0);
+    assert!(
+        (t.scale[1].s - 120.0).abs() <= 3.0,
+        "end scale {}",
+        t.scale[1].s
+    );
+    let i = t.scale[0].i.unwrap();
+    assert!((0.45..=0.7).contains(&i.x), "i.x {}", i.x);
+}

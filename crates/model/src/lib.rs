@@ -12,7 +12,9 @@ pub mod time;
 pub mod tools;
 
 pub use audio::{Audio, AudioEvent, Tempo, Word};
-pub use inspect::{Animation, BoxN, CaptionEvent, Inspect, InspectTiming};
+pub use inspect::{
+    Animation, BoxN, CaptionEvent, Ease, Inspect, InspectTiming, Keyframe, ShotMotion, Transform,
+};
 pub use probe::{AudioInfo, Probe, SafeZone};
 pub use shots::{Candidate, Segment, Shots, Transition, TransitionKind};
 pub use time::{Fps, RationalTime, TimeError, TimeRange};

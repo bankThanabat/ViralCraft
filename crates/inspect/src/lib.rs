@@ -1,6 +1,7 @@
 //! `inspect`: measurements from the extracted frames.
 
 pub mod captions;
+pub mod motion;
 pub mod style;
 pub mod text;
 
@@ -10,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use image::{imageops, GrayImage, RgbImage};
-use model::{BoxN, CaptionEvent, Inspect, InspectTiming, Probe, Shots, TimeRange};
+use model::{BoxN, CaptionEvent, Inspect, InspectTiming, Probe, ShotMotion, Shots, TimeRange};
 
 pub const INSPECT_FILE: &str = "inspect.json";
 
@@ -135,6 +136,7 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
     let inspect = Inspect {
         version: 1,
         rate: probe.rate,
+        motion: measure_motion(&shots, &thumbs, &events),
         captions: events,
         timing: InspectTiming {
             frames,
@@ -149,6 +151,41 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
     let json = serde_json::to_string_pretty(&inspect).expect("Inspect always serializes");
     fs::write(&out, json).map_err(|source| InspectError::Io { path: out, source })?;
     Ok(inspect)
+}
+
+/// One estimate per shot from the grayscale thumbnails, ignoring captions
+/// that are on screen during the shot.
+fn measure_motion(
+    shots: &Shots,
+    thumbs: &[GrayImage],
+    captions: &[CaptionEvent],
+) -> Vec<ShotMotion> {
+    shots
+        .segments
+        .iter()
+        .map(|seg| {
+            let (start, end) = (seg.range.start.value, seg.range.end_frame());
+            let planes: Vec<motion::Plane> = thumbs[start as usize..end as usize]
+                .iter()
+                .map(motion::Plane::from_gray)
+                .collect();
+            let masks: Vec<BoxN> = captions
+                .iter()
+                .filter(|c| c.range.start.value < end && c.range.end_frame() > start)
+                .map(|c| BoxN {
+                    w: c.bounds.w + 0.04,
+                    h: c.bounds.h + 0.02,
+                    ..c.bounds
+                })
+                .collect();
+            let estimate = motion::estimate_shot_masked(&planes, start, &masks);
+            ShotMotion {
+                shot: seg.n,
+                confidence: (estimate.confidence * 100.0).round() / 100.0,
+                transform: estimate.transform,
+            }
+        })
+        .collect()
 }
 
 fn load_frame(run_dir: &Path, n: u64) -> Result<RgbImage, InspectError> {

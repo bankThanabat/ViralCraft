@@ -72,7 +72,47 @@ pub struct Inspect {
     pub version: u32,
     pub rate: Fps,
     pub captions: Vec<CaptionEvent>,
+    /// One entry per shot, in shot order.
+    pub motion: Vec<ShotMotion>,
     pub timing: InspectTiming,
+}
+
+/// Lottie bezier handle, both coordinates 0..1 in time and progress.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Ease {
+    pub x: f64,
+    pub y: f64,
+}
+
+/// A Lottie keyframe: value `s` at frame `t`. `o` and `i` shape the segment
+/// from this keyframe to the next; absent on the last keyframe.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Keyframe<T> {
+    pub t: i64,
+    pub s: T,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub o: Option<Ease>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub i: Option<Ease>,
+}
+
+/// Apparent camera transform over a shot in Lottie terms: `a` anchor and
+/// `p` position in normalized frame units, `s` scale in percent. Rotation
+/// is not measured in v1.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Transform {
+    pub anchor: [f64; 2],
+    pub scale: Vec<Keyframe<f64>>,
+    pub position: Vec<Keyframe<[f64; 2]>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShotMotion {
+    pub shot: u32,
+    /// Median phase-correlation peak, 0..1.
+    pub confidence: f64,
+    /// `None` (written `unknown`) when confidence is too low to trust.
+    pub transform: Option<Transform>,
 }
 
 /// How long text detection took, so the per-frame budget can be checked.

@@ -326,14 +326,23 @@ judgement call.
 
 ## Motion estimation
 
-Per shot, estimate a similarity transform (scale, translation, rotation)
-between consecutive frames with a feature matcher restricted to background
-regions, with RANSAC outlier rejection. Accumulate into per-frame scale and
-position, fit keyframes at the shot's ends plus any inflection, fit the bezier
-handles, and report a confidence. Below 0.6 confidence the transform is
-written `unknown` and the agent inspects the frames. The measurement is the
-apparent camera transform; whether the editor achieved it with a zoom keyframe
-or a punch-in crop is for the editor to choose.
+Per shot, each frame's 135x240 grayscale thumbnail is compared with the
+shot's first frame: for candidate scales of the first frame (1% steps,
+re-centred until the best is not at the edge, then refined between steps),
+phase correlation gives the translation and a peak height. Captions on
+screen during the shot are masked out. The best scale per frame forms a
+curve that is fitted to Lottie keyframes: one keyframe when scale moves
+less than 1%, otherwise first and last frame with `cubic-bezier(x1, 0, x2,
+1)` handles fitted to the curve. Position is reported the same way.
+Rotation is not measured in v1.
+
+Confidence is the median correlation peak over the shot. Below 0.3 the
+transform is written `unknown` and the agent inspects the frames.
+Calibrated 2026-10-09: the real `zoom-1.mp4` scores 0.69 and recovers
+100→119.9 with handles (0, 0, 0.55, 1) against the true (0, 0, 0.58, 1);
+unrelated frames score under 0.3; a flat single-colour shot scores 0 and
+is `unknown`. The measurement is the apparent camera transform; whether
+the editor used a zoom keyframe or a punch-in crop is the editor's choice.
 
 ## judgement.json
 

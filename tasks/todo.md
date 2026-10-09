@@ -205,7 +205,7 @@ moved to the output stage (tasks 12/13), since `inspect` does not read
 
 **Estimated scope:** M
 
-## Task 9: motion estimate as Lottie keyframes
+## Task 9: motion estimate as Lottie keyframes ✅ done
 
 **Description:** Per shot, estimate a global similarity (scale and translation;
 rotation reported `unknown` in v1) between consecutive downsampled grayscale
@@ -215,13 +215,13 @@ inflections, fit bezier handles from the curve shape, report confidence from
 correlation peak sharpness.
 
 **Acceptance criteria:**
-- [ ] Synthetic in-memory frames of a textured image scaled 1.00→1.20 with ease-out over 90 frames yield keyframes `s: 100` at f0 and `s: 120 ±3` at f89 with `i.x` in 0.45..0.7
-- [ ] A static sequence yields scale 100 ±1 with confidence above 0.9; pure noise yields confidence below 0.3 and `unknown`
-- [ ] Ignored test on `zoom-1.mp4`: 100→120 within 3
+- [x] Synthetic in-memory frames of a textured image scaled 1.00→1.20 with ease-out over 90 frames yield keyframes `s: 100` at f0 and `s: 120 ±3` at f89 with `i.x` in 0.45..0.7
+- [x] A static sequence yields scale 100 ±1 with confidence above 0.9; pure noise yields confidence below 0.3 and `unknown` (threshold calibrated to 0.3, see SPEC.md)
+- [x] Ignored test on `zoom-1.mp4`: 100→120 within 3
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p inspect` and `-- --ignored`
-- [ ] Manual check: `viralcraft inspect out/zoom-1` prints the transform
+- [x] Tests pass: `cargo test -p inspect` and `-- --ignored`
+- [x] Manual check: `viralcraft inspect out/zoom-1` prints the transform
 
 **Dependencies:** 5
 

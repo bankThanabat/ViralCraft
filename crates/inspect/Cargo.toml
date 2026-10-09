@@ -13,6 +13,7 @@ ingest = { path = "../ingest" }
 model.workspace = true
 ocrs = "0.13"
 rten = "0.26"
+rustfft = "6"
 serde.workspace = true
 serde_json.workspace = true
 shots = { path = "../shots" }
