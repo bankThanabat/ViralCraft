@@ -465,20 +465,74 @@ line per command.
 - [x] ASS burn-in check: fixture within 0.008 of the frame; real-clip preview shows positions and colours right, font size an estimate (tasks/notes.md)
 - [ ] Review with human before proceeding
 
-## Phase 4: Skill and docs
+## Phase 4: Skills, rebuild and docs
 
-## Task 18: the agent skill
+Replanned 2026-10-09 with the user: the core skill (analyze, review,
+finalize) plus an optional editor step that rebuilds the format from the
+user's own clips, FilmCraft first. See the intent's amendment and SPEC.md
+"Rebuild (optional editor step)".
 
-**Description:** `skill/viralcraft/SKILL.md` with the run procedure (doctor,
-analyze, read `inspect.json` and frames, fill `judgement.json` slot by slot,
-finalize, write Rules), plus `references/hook-taxonomy.md`,
-`references/look-vocabulary.md` and a worked example `judgement.json`.
-Installable by copying into `.claude/skills/` and `.agents/skills/`.
+## Task 18: assets: read the user's clips
+
+**Description:** `viralcraft assets <RUN_DIR> [--assets DIR]` finds the
+user's clips (`./assets/` by default; asks for a folder if it is missing or
+has no video), probes each (duration, size, rate, audio), transcribes speech
+and names sounds with the same code as `audio`, saves one thumbnail per
+clip, and writes `<RUN_DIR>/rebuild/assets.json`. Never modifies the clips.
 
 **Acceptance criteria:**
-- [ ] SKILL.md frontmatter has `name` and a `description` under 1024 chars that triggers on "analyze this viral video" and "copy this format"
-- [ ] Every required judgement field has a step telling the agent what to look at and how to decide
-- [ ] A fresh Claude Code session with the skill installed completes a run on `cuts-3.mp4` with no `TODO:` left (manual)
+- [ ] With an empty or missing folder it asks for one, and fails with a JSON error when there is no answer
+- [ ] On fixtures copied into a temp `assets/` (cuts-3.mp4, zoom-1.mp4, a clip made from speech.wav), assets.json lists all three with correct durations and sizes, the speech clip's words match the fixture text, and each has a thumbnail
+- [ ] Files in the assets folder are byte-identical before and after
+
+**Verification:**
+- [ ] Tests pass: `cargo test --workspace` and the new ignored integration test
+- [ ] Manual check: run on a folder of the user's own clips
+
+**Dependencies:** 17
+
+**Files likely touched:** `crates/rebuild/{Cargo.toml,src/lib.rs,src/assets.rs}`, `crates/model/src/rebuild.rs`, `apps/viralcraft/src/main.rs`
+
+**Estimated scope:** M
+
+## Task 19: prompt: REBUILD-PROMPT.md
+
+**Description:** `viralcraft prompt <RUN_DIR> [--script FILE]` turns a
+finished run into editor-agnostic steps: sequence settings, per slot its
+timing, "fill with" and candidate clips; caption lines with full style and
+text from the script (one line per caption) or else the assets'
+transcripts; music and sound effects with where they land; transitions;
+look; the template's rules; and "done when" checks. Refuses while
+TEMPLATE.md still has `TODO:`.
+
+**Acceptance criteria:**
+- [ ] Refuses with a clear JSON error while TEMPLATE.md has `TODO:` or assets.json is missing
+- [ ] Snapshot of the prompt for the finished cuts-3 run with fixture assets, with and without a script
+- [ ] With a script, caption lines use it in order; without one, they come from the assets' transcripts; with neither, the prompt asks the agent to draft lines for the user to approve
+- [ ] Contains nothing FilmCraft-specific
+
+**Verification:**
+- [ ] Tests pass: `cargo test --workspace`
+- [ ] Manual check: prompt for the real clip's template with sample assets reads as followable steps
+
+**Dependencies:** 18
+
+**Files likely touched:** `crates/rebuild/src/prompt.rs`, snapshots, `apps/viralcraft/src/main.rs`
+
+**Estimated scope:** M
+
+## Task 20: the core skill
+
+**Description:** `skill/viralcraft/SKILL.md` for Claude Code, Codex and
+Cursor: doctor, analyze, review frames and fill judgement.json slot by slot,
+finalize, complete TEMPLATE.md's fill-with and rules. References: a
+judgement guide (what to look at for each field), hook and look vocabulary,
+and the real-clip judgement as a worked example.
+
+**Acceptance criteria:**
+- [ ] Frontmatter `name` and a `description` under 1024 characters that triggers on "analyze this viral video" and "copy this format"
+- [ ] Every required judgement field has a step saying what to look at and how to decide
+- [ ] A fresh agent session with only the skill installed takes cuts-3 to a finalized run with no `TODO:` (manual)
 
 **Verification:**
 - [ ] Manual check: the fresh-session run above
@@ -489,45 +543,72 @@ Installable by copying into `.claude/skills/` and `.agents/skills/`.
 
 **Estimated scope:** M
 
-## Task 19: ADRs and README
+## Task 21: the FilmCraft editor skill
 
-**Description:** ADRs for Rust, agent-side judgement, ffmpeg-only, and
-standards-based formats; README with install, doctor, analyze, finalize.
+**Description:** `skill/viralcraft-filmcraft/SKILL.md`: follow
+REBUILD-PROMPT.md through `filmcraft-cli` (MCP or `exec`). New sequence at
+the source's size and rate, import the assets, place and trim clips per slot
+(`timeline.place`), captions as FilmCraft text with the matching style
+(`graphics.newText`, `graphics.set`), music and sounds placed, export
+`rebuild/rebuild.mp4` and save `rebuild/rebuild.fcproj`. Checks for
+filmcraft-cli and explains how to get it if missing. A reference maps each
+prompt step to FilmCraft commands, verified against FilmCraft 0.4.0.
 
 **Acceptance criteria:**
-- [ ] Four ADRs in `docs/adr/` following the documentation-and-adrs template
-- [ ] README commands match `SPEC.md` "Commands" exactly
+- [ ] The command mapping is exercised by an ignored test that builds a small rebuild of cuts-3 from fixture assets through filmcraft-cli (FILMCRAFT_CLI) and checks the exported MP4's duration, size and cut points
+- [ ] Rendered frames show the caption text at the prompt's positions
+- [ ] A fresh agent session with both skills rebuilds the real clip's format from sample assets into rebuild.mp4 (manual)
 
 **Verification:**
-- [ ] Manual check: a reader can go from clone to first run using the README alone
+- [ ] Tests pass: the ignored FilmCraft test
+- [ ] Manual check: watch rebuild.mp4 next to the original
 
-**Dependencies:** 17
+**Dependencies:** 19, 20
 
-**Files likely touched:** `docs/adr/000{1..4}-*.md`, `README.md`
+**Files likely touched:** `skill/viralcraft-filmcraft/{SKILL.md,references/filmcraft-commands.md}`, `crates/rebuild/tests/filmcraft.rs`
+
+**Estimated scope:** L (may split once the command mapping is known)
+
+## Task 22: ADRs and README
+
+**Description:** ADRs for Rust, agent-side judgement, ffmpeg-only core,
+standards-based formats, and the optional editor step; README with install,
+doctor, analyze, review, finalize, and the optional rebuild.
+
+**Acceptance criteria:**
+- [ ] Five ADRs in `docs/adr/`
+- [ ] README commands match SPEC.md "Commands" and "Rebuild" exactly
+
+**Verification:**
+- [ ] Manual check: a reader can go from clone to a finalized run using the README alone
+
+**Dependencies:** 21
+
+**Files likely touched:** `docs/adr/000{1..5}-*.md`, `README.md`
 
 **Estimated scope:** S
 
-## Task 20: blind-rebuild run
+## Task 23: blind-rebuild run
 
-**Description:** With the human: pick one real viral video, run the pipeline,
-complete the judgement, hand `EDIT-SPEC.md` to an editor (or rebuild it
-ourselves in FilmCraft from new footage), compare side by side, record the
-result and every field that was missing or wrong in `docs/blind-rebuild-01.md`.
+**Description:** With the user: one real viral video plus their own clips.
+Run the core skill, then the FilmCraft step; watch the rebuild next to the
+original; record the verdict and every gap in `docs/blind-rebuild-01.md`.
 
 **Acceptance criteria:**
 - [ ] `docs/blind-rebuild-01.md` exists with the verdict and the gap list
-- [ ] Each gap is filed as an open question in `SPEC.md` or fixed
+- [ ] Each gap is fixed or filed as an open question in SPEC.md
 
 **Verification:**
-- [ ] Manual check: the human agrees the side-by-side reads as the same format, or the gaps are recorded
+- [ ] Manual check: the user agrees the rebuild reads as the same format, or the gaps are recorded
 
-**Dependencies:** 18, 19
+**Dependencies:** 21, 22
 
 **Files likely touched:** `docs/blind-rebuild-01.md`, `SPEC.md`
 
 **Estimated scope:** S
 
 ## Checkpoint: Complete
-- [ ] Skill runs end to end in a fresh session
+- [ ] Core skill runs end to end in a fresh session
+- [ ] FilmCraft step rebuilds the format from sample assets
 - [ ] Blind rebuild recorded
 - [ ] `cargo test --workspace` under 2 s; ignored suite under 60 s

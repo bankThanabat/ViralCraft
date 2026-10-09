@@ -77,3 +77,27 @@ v1 is analysis only. No rendering, no accounts, no web UI, no link downloading.
 - TikTok, Reels or Shorts link ingestion
 - Image analysis
 - Any hosted service
+
+## Amendment, 2026-10-09: optional rebuild step
+
+After the first real clip went end to end, the user extended v1 with an
+optional second step, keeping the first exactly as above:
+
+1. **Core (always):** analyze, AI review, finalize. Produces the edit
+   spec, template, captions and timeline.
+2. **Optional editor step:** the finished template becomes a rebuild
+   prompt that an agent follows to build the same format from the user's
+   own clips in an editor. FilmCraft first; other editors can be added
+   later as further editor steps reading the same prompt.
+
+Decided with the user:
+- The user's clips go in `./assets/`; the tool asks for a folder if it is
+  missing or empty.
+- In FilmCraft the agent builds a project with the clips cut to the slot
+  timings, captions as editable text in the matching style, music and
+  sound effects placed, and exports an MP4. The user does final touches.
+- Caption text comes from the user's script if they give one; otherwise
+  from a transcript of the speech in their own clips.
+- The user's files are never modified; everything is written to new files.
+- Users are not asked to install extra tools for checks (ffmpeg-full was
+  dropped); FilmCraft is only needed for the optional step.

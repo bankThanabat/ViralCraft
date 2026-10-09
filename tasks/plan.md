@@ -91,10 +91,13 @@ template, and the `analyze` / `finalize` / `clean` wiring.
 - `captions.ass` burns onto the fixture and OCRs back within 0.02
 - Review with human
 
-### Phase 4: Skill and docs (tasks 18 to 20)
+### Phase 4: Skills, rebuild and docs (tasks 18 to 23)
 
-The agent skill, ADRs and README, then one blind-rebuild run on a real video
-with the human.
+Replanned 2026-10-09 with the user. The core skill (analyze, review,
+finalize) plus an optional editor step: `assets` reads the user's clips,
+`prompt` writes REBUILD-PROMPT.md, and a FilmCraft skill follows it through
+filmcraft-cli to build and export the video. Then ADRs and README, and the
+blind-rebuild run with the user's own clips.
 
 ### Checkpoint: Complete
 

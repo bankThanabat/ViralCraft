@@ -13,9 +13,12 @@ to work by these ids. Each module is a crate in one Cargo workspace.
 | `editspec` | Assemble the Markdown edit spec (shots, captions, overlays, transitions, sound, look) from the measurements, with marked judgement slots and the required-field list. | shots, audio, inspect |
 | `exports` | Write the OTIO timeline (FilmCraft-compatible layout, `viralcraft` metadata), `captions.ass` and `captions.vtt`. | shots, audio, inspect, judgement |
 | `template` | Emit the slot table and observed timings; the agent writes the rules. | shots, audio, inspect, judgement |
-| `skill` | SKILL.md for Claude Code, Codex and Cursor. Runs the CLI, guides the agent through the judgement slots and the template. | all |
+| `assets` | The user's clips for an optional rebuild: find the folder (ask if missing), probe, transcribe, name sounds, one thumbnail each. | ingest, audio |
+| `prompt` | REBUILD-PROMPT.md: the finished template as editor-agnostic steps, with caption text from the user's script or the assets' transcripts. | editspec, template, assets |
+| `skill` | Core SKILL.md for Claude Code, Codex and Cursor: analyze, review the frames and fill judgement.json, finalize, complete the template. | all core modules |
+| `skill-filmcraft` | Optional editor SKILL.md: follow REBUILD-PROMPT.md through filmcraft-cli to build and export the video from the user's clips. Other editors later as sibling skills. | prompt |
 
-Build order: doctor → ingest → shots, audio → inspect → editspec → exports, template → skill
+Build order: doctor → ingest → shots, audio → inspect → editspec → exports, template → assets → prompt → skill → skill-filmcraft
 
 `exports` and `template` depend on the measurement files and on the agent's
 `judgement.json`, not on `editspec`; `finalize` runs them after the agent is

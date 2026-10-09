@@ -450,6 +450,45 @@ judgement.json. The agent writes the Rules section, the "fill with" column and
 the format name, because deciding that "cut every third beat" is intentional
 rather than coincidence is a judgement.
 
+## Rebuild (optional editor step)
+
+Added 2026-10-09 (see the intent's amendment). The core pipeline above is
+unchanged; this step starts from a finished run (judgement complete,
+TEMPLATE.md with no `TODO:`).
+
+```
+viralcraft assets <RUN_DIR> [--assets DIR]   # the user's clips: probe, transcribe,
+                                             # one thumbnail each -> rebuild/assets.json
+viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnostic steps
+```
+
+- **Assets.** `--assets` defaults to `./assets/`; if it is missing or has no
+  video, the CLI asks for a folder. Each clip gets duration, size, rate,
+  audio yes/no, a transcript with word times and named sounds (the same
+  whisper and YAMNet code as `audio`), and a thumbnail the agent can look
+  at. Results go to `<RUN_DIR>/rebuild/assets.json`; the clips themselves
+  are never modified.
+- **Prompt.** `REBUILD-PROMPT.md` turns the template into steps any editor
+  agent can follow: sequence settings (size, rate), then per slot its
+  timing, what goes there ("fill with"), and candidate clips from
+  `assets.json`; caption lines with their style (font substitute, size,
+  colours, box or outline, anchor and position, animation) and text from
+  the user's script (`--script`, one line per caption) or, without one,
+  from the assets' transcripts; music and sound effects with where they
+  land (assets with only music or a named sound are offered for those);
+  transitions; the look notes; the template's rules; and checks for "done".
+  It refuses to run until TEMPLATE.md has no `TODO:`.
+- **FilmCraft.** A second skill, `viralcraft-filmcraft`, has the agent
+  follow `REBUILD-PROMPT.md` through `filmcraft-cli` (MCP or `exec`): a new
+  project at the source's size and rate, the assets imported, clips placed
+  and trimmed to the slots, captions as FilmCraft text in the matching
+  style, music and sounds placed, then an export to
+  `<RUN_DIR>/rebuild/rebuild.mp4` and the project to
+  `<RUN_DIR>/rebuild/rebuild.fcproj`. The skill checks for `filmcraft-cli`
+  and tells the user how to get it if missing; `doctor` does not.
+- **More editors later.** Each editor is its own skill reading the same
+  prompt; nothing in the prompt is FilmCraft-specific.
+
 ## Code Style
 
 ```rust
@@ -549,7 +588,8 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
 **Never**
 
 - Download videos from a URL. v1 is file input only.
-- Render or modify the user's assets. Analysis only.
+- Modify the user's assets. The optional rebuild step only reads them and
+  writes new files under `<RUN_DIR>/rebuild/`.
 - Call a hosted model from the CLI. Judgement stays in the agent.
 - Commit `inbox/`, `out/`, model weights or any user video.
 - Delete or skip a failing test to get to green.
@@ -630,6 +670,9 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
   PyTorch only) because it runs today; one function wraps it so it can be
   swapped. On the first real clip it found `[whoosh] [thunk]` on the
   punchline cut and misnamed a jingle `[car alarm]`. Decided 2026-10-09.
+- **An optional rebuild step joins v1.** Core stays analyze, review,
+  finalize; a rebuild prompt plus a FilmCraft editor skill builds the
+  format from the user's clips. Decided with the user 2026-10-09.
 - **Speed ramps are `unknown` in v1.** Constant per-shot speed is measured;
   ramps are left to the agent and the editor.
 
