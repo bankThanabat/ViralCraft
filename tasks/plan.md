@@ -28,8 +28,8 @@ Already recorded in `SPEC.md`, "Decisions". The ones that shape the task order:
 Crates the plan adds (listed once here so approving the plan approves them):
 `clap`, `serde`, `serde_json`, `anyhow`, `thiserror`, `tracing`,
 `tracing-subscriber`, `image`, `ocrs 0.13` + `rten 0.26`, `whisper-rs 0.16`,
-`hound`, `rustfft` (onset envelope), `sha2` + `ureq` (model download and
-check), `which`, `tempfile`, `insta` (snapshots). `whisper-rs` and `rten`
+`hound`, `rustfft` (onset envelope), `sha2` (model check; downloads run the
+`curl` command the user approves), `which`, `tempfile`, `insta` (snapshots). `whisper-rs` and `rten`
 compile native code; both were built on this machine during verification.
 
 ## Dependency graph

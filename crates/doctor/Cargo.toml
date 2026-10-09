@@ -1,0 +1,14 @@
+[package]
+name = "doctor"
+description = "Checks the external tools and model files ViralCraft needs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"

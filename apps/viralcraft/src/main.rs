@@ -3,8 +3,11 @@
 //! Every subcommand prints exactly one JSON summary line on stdout for the
 //! agent to parse. Human-readable progress goes to stderr.
 
+mod doctor_cmd;
+
+use std::process::ExitCode;
+
 use clap::{Parser, Subcommand};
-use serde_json::json;
 
 #[derive(Parser)]
 #[command(version, about)]
@@ -16,16 +19,22 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Check that the tools and model files ViralCraft needs are present.
-    Doctor,
+    Doctor {
+        /// Offer to run each missing item's install command, asking first.
+        #[arg(long)]
+        install: bool,
+    },
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<ExitCode> {
     let cli = Cli::parse();
-    let summary = match cli.command {
-        // The real checks arrive with the `doctor` crate; until then it
-        // reports that nothing was checked rather than claiming success.
-        Command::Doctor => json!({ "command": "doctor", "ok": true, "checks": [] }),
+    let (summary, ok) = match cli.command {
+        Command::Doctor { install } => doctor_cmd::run(install)?,
     };
     println!("{summary}");
-    Ok(())
+    Ok(if ok {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::FAILURE
+    })
 }

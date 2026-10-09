@@ -27,7 +27,7 @@ prints the JSON summary line. `.gitignore` for `target/`, `inbox/`, `out/`.
 
 **Estimated scope:** M
 
-## Task 2: doctor checks tools and models
+## Task 2: doctor checks tools and models ✅ done
 
 **Description:** `crates/doctor` checks `ffmpeg`, `ffprobe`, `ggml-tiny.en.bin`
 and both ocrs `.rten` files (path, size, SHA-256). Prints one line per item
@@ -35,13 +35,13 @@ with the install or download command for macOS, Linux and Windows. `--install`
 asks per item on stderr and runs the command on yes. Never installs otherwise.
 
 **Acceptance criteria:**
-- [ ] With an injected `which` that finds nothing, the report lists ffmpeg and ffprobe as missing with `brew install ffmpeg` on macOS and exits 1
-- [ ] A model file with the wrong SHA-256 is reported as `corrupt`, not `present`
-- [ ] With everything present, exit 0 and the JSON summary has `"ok": true`
+- [x] With an injected `which` that finds nothing, the report lists ffmpeg and ffprobe as missing with `brew install ffmpeg` on macOS and exits 1
+- [x] A model file with the wrong SHA-256 is reported as `corrupt`, not `present`
+- [x] With everything present, exit 0 and the JSON summary has `"ok": true`
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p doctor`
-- [ ] Manual check: `viralcraft doctor` on this Mac lists ffmpeg, ffprobe present and the three models with their state
+- [x] Tests pass: `cargo test -p doctor`
+- [x] Manual check: `viralcraft doctor` on this Mac lists ffmpeg, ffprobe present and the three models with their state
 
 **Dependencies:** 1
 

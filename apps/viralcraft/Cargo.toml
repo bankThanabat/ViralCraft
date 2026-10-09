@@ -11,3 +11,8 @@ anyhow.workspace = true
 clap.workspace = true
 serde_json.workspace = true
 model.workspace = true
+doctor = { path = "../../crates/doctor" }
+which = "8"
+
+[dev-dependencies]
+tempfile = "3"
