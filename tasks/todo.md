@@ -250,7 +250,7 @@ clearance from each safe-zone band, and an `inside` flag.
 
 **Estimated scope:** S
 
-## Task 11: overlay events
+## Task 11: overlay events ✅ done
 
 **Description:** Regions that change against the estimated camera transform
 and are not text: frame-difference after warping by the shot transform,
@@ -258,12 +258,12 @@ threshold, connected components, track across frames into overlay events with
 anchor, size, in/out. Kind is left to judgement. Allowed to be conservative.
 
 **Acceptance criteria:**
-- [ ] A synthetic sequence with a 0.12×0.07 patch appearing at f12 and leaving at f54 on a static background yields one event with box within 0.02
-- [ ] The same patch on a zooming background (task 9 transform applied) still yields one event, not a background false positive
-- [ ] No overlay events on `cuts-3.mp4` apart from the captions (which are excluded as text)
+- [x] A synthetic sequence with a 0.12×0.07 patch appearing at f12 and leaving at f54 on a static background yields one event with box within 0.02
+- [x] The same patch on a zooming background (task 9 transform applied) still yields one event, not a background false positive
+- [x] No overlay events on `cuts-3.mp4` apart from the captions (which are excluded as text)
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p inspect` and `-- --ignored`
+- [x] Tests pass: `cargo test -p inspect` and `-- --ignored`
 
 **Dependencies:** 9, 10
 

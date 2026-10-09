@@ -132,6 +132,8 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                 json!({
                     "ok": true,
                     "captions": inspect.captions.len(),
+                    "overlays": inspect.overlays.len(),
+                    "shots_with_motion": inspect.motion.iter().filter(|m| m.transform.is_some()).count(),
                     "detect_ms_per_frame": inspect.timing.detect_ms_per_frame,
                     "files": [run_dir.join(inspect::INSPECT_FILE)],
                 }),

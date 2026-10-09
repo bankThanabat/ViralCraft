@@ -3,6 +3,7 @@
 pub mod captions;
 pub mod look;
 pub mod motion;
+pub mod overlays;
 pub mod style;
 pub mod text;
 
@@ -13,7 +14,8 @@ use std::time::Instant;
 
 use image::{imageops, GrayImage, RgbImage};
 use model::{
-    BoxN, CaptionEvent, Inspect, InspectTiming, Probe, ShotLook, ShotMotion, Shots, TimeRange,
+    BoxN, CaptionEvent, Inspect, InspectTiming, OverlayEvent, Probe, ShotLook, ShotMotion, Shots,
+    TimeRange,
 };
 
 pub const INSPECT_FILE: &str = "inspect.json";
@@ -137,6 +139,8 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
         });
     }
 
+    let (motion, overlays) = measure_motion(&shots, &thumbs, &events, &probe);
+
     let mut all_pixels = Vec::new();
     let mut shot_looks = Vec::new();
     for seg in &shots.segments {
@@ -151,7 +155,8 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
     let inspect = Inspect {
         version: 1,
         rate: probe.rate,
-        motion: measure_motion(&shots, &thumbs, &events),
+        motion,
+        overlays,
         look: look::measure(&all_pixels),
         shot_looks,
         captions: events,
@@ -170,39 +175,54 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
     Ok(inspect)
 }
 
-/// One estimate per shot from the grayscale thumbnails, ignoring captions
-/// that are on screen during the shot.
+/// Camera motion per shot from the grayscale thumbnails, ignoring captions
+/// on screen during the shot, and the overlays found against that motion.
+/// Shots whose motion is unknown are skipped for overlays.
 fn measure_motion(
     shots: &Shots,
     thumbs: &[GrayImage],
     captions: &[CaptionEvent],
-) -> Vec<ShotMotion> {
-    shots
-        .segments
-        .iter()
-        .map(|seg| {
-            let (start, end) = (seg.range.start.value, seg.range.end_frame());
-            let planes: Vec<motion::Plane> = thumbs[start as usize..end as usize]
-                .iter()
-                .map(motion::Plane::from_gray)
-                .collect();
-            let masks: Vec<BoxN> = captions
-                .iter()
-                .filter(|c| c.range.start.value < end && c.range.end_frame() > start)
-                .map(|c| BoxN {
-                    w: c.bounds.w + 0.04,
-                    h: c.bounds.h + 0.02,
-                    ..c.bounds
-                })
-                .collect();
-            let estimate = motion::estimate_shot_masked(&planes, start, &masks);
-            ShotMotion {
-                shot: seg.n,
-                confidence: (estimate.confidence * 100.0).round() / 100.0,
-                transform: estimate.transform,
-            }
+    probe: &Probe,
+) -> (Vec<ShotMotion>, Vec<OverlayEvent>) {
+    let mut motion = Vec::new();
+    let mut spans = Vec::new();
+    for seg in &shots.segments {
+        let (start, end) = (seg.range.start.value, seg.range.end_frame());
+        let planes: Vec<motion::Plane> = thumbs[start as usize..end as usize]
+            .iter()
+            .map(motion::Plane::from_gray)
+            .collect();
+        let masks: Vec<BoxN> = captions
+            .iter()
+            .filter(|c| c.range.start.value < end && c.range.end_frame() > start)
+            .map(|c| BoxN {
+                w: c.bounds.w + 0.04,
+                h: c.bounds.h + 0.02,
+                ..c.bounds
+            })
+            .collect();
+        let estimate = motion::estimate_shot_masked(&planes, start, &masks);
+        if estimate.transform.is_some() {
+            spans.extend(overlays::detect(&planes, &estimate.fits, start, &masks));
+        }
+        motion.push(ShotMotion {
+            shot: seg.n,
+            confidence: (estimate.confidence * 100.0).round() / 100.0,
+            transform: estimate.transform,
+        });
+    }
+    let overlays = spans
+        .into_iter()
+        .enumerate()
+        .map(|(i, o)| OverlayEvent {
+            id: format!("o{}", i + 1),
+            range: TimeRange::from_frames(o.start as i64, (o.end - o.start) as i64, probe.rate),
+            anchor: captions::anchor(&o.bounds).to_string(),
+            safe_zone: look::clearance(&o.bounds, &probe.safe_zone),
+            bounds: o.bounds,
         })
-        .collect()
+        .collect();
+    (motion, overlays)
 }
 
 /// Pixels from up to five evenly spaced frames of `[start, end)`, each

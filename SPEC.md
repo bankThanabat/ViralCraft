@@ -320,9 +320,13 @@ per frame:
    timing; unmatched captions keep OCR-only timing.
 
 Overlays (emoji, stickers, images) are regions that are not text and not part
-of the shot's camera motion; v1 detects them by frame differencing against the
-estimated camera transform and reports position, size and in/out. Kind is a
-judgement call.
+of the shot's camera motion. v1 predicts each frame from the shot's first
+frame warped by the measured camera transform, takes regions that differ
+(outside captions), and keeps those tracked for at least 6 frames at a steady
+size and place; moving subjects change shape and drop out. It reports
+position, size and in/out; kind is a judgement call. Known limits: an overlay
+already on the shot's first frame looks like scene and is missed, and shots
+with `unknown` motion are skipped.
 
 ## Motion estimation
 

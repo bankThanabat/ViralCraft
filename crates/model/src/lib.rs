@@ -14,7 +14,7 @@ pub mod tools;
 pub use audio::{Audio, AudioEvent, Tempo, Word};
 pub use inspect::{
     Animation, BoxN, CaptionEvent, Clearance, Ease, Inspect, InspectTiming, Keyframe, Look,
-    LumaStats, ShotLook, ShotMotion, Swatch, Transform,
+    LumaStats, OverlayEvent, ShotLook, ShotMotion, Swatch, Transform,
 };
 pub use probe::{AudioInfo, Probe, SafeZone};
 pub use shots::{Candidate, Segment, Shots, Transition, TransitionKind};

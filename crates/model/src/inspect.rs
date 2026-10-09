@@ -74,6 +74,8 @@ pub struct Inspect {
     pub captions: Vec<CaptionEvent>,
     /// One entry per shot, in shot order.
     pub motion: Vec<ShotMotion>,
+    /// Stickers, emoji and inset images that appear mid-shot.
+    pub overlays: Vec<OverlayEvent>,
     /// Look of the whole video.
     pub look: Look,
     /// Look of each shot, in shot order.
@@ -149,6 +151,19 @@ pub struct CaptionEvent {
     pub uppercase: bool,
     pub animation: Option<Animation>,
     /// Distance from each platform UI band, from `probe.json`'s profile.
+    pub safe_zone: Clearance,
+}
+
+/// A region that appears during a shot and holds still while the camera
+/// moves. What it is (emoji, sticker, image) is a judgement call.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OverlayEvent {
+    /// `o1`, `o2`, ... in time order.
+    pub id: String,
+    pub range: TimeRange,
+    pub bounds: BoxN,
+    /// ASS numpad alignment, as for captions.
+    pub anchor: String,
     pub safe_zone: Clearance,
 }
 

@@ -100,6 +100,11 @@ fn zoom_1_reads_as_a_100_to_120_eased_zoom() {
     );
     let i = t.scale[0].i.unwrap();
     assert!((0.45..=0.7).contains(&i.x), "i.x {}", i.x);
+    assert!(
+        result.overlays.is_empty(),
+        "a zoom is not an overlay: {:?}",
+        result.overlays
+    );
 }
 
 #[test]
