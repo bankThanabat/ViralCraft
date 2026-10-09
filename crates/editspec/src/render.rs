@@ -9,7 +9,7 @@ use model::{
     Audio, CaptionEvent, Inspect, Judgement, Needs, Probe, RationalTime, Shots, TransitionKind,
 };
 
-use crate::fmt::{cell, norm, num, seconds, time, transform_summary};
+use crate::fmt::{animation, cell, norm, num, seconds, time, transform_summary};
 use crate::sync::{landing, PictureEvent};
 
 /// Everything the edit spec is written from.
@@ -258,20 +258,6 @@ fn shots(d: &mut String, x: &Inputs) {
     }
 }
 
-fn animation(c: &CaptionEvent) -> String {
-    match &c.animation {
-        None => "none".to_string(),
-        Some(model::Animation::PopIn { frames, from_scale }) => {
-            format!("pop-in {frames}f from {}%", num(*from_scale))
-        }
-        Some(model::Animation::Slide { frames, dx, dy }) => format!(
-            "slide in {frames}f from offset ({}, {})",
-            norm(*dx),
-            norm(*dy)
-        ),
-    }
-}
-
 fn clearance(c: &model::Clearance) -> String {
     if c.inside {
         return "inside".to_string();
@@ -371,7 +357,7 @@ fn captions(d: &mut String, x: &Inputs, scene_text: &[CaptionEvent]) {
             norm(c.bounds.cy),
             norm(c.bounds.w),
             norm(c.bounds.h),
-            animation(c),
+            animation(c.animation.as_ref()),
             clearance(&c.safe_zone)
         );
     }

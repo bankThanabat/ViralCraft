@@ -786,6 +786,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "rebuild"
+version = "0.1.0"
+dependencies = [
+ "audio",
+ "editspec",
+ "ingest",
+ "insta",
+ "model",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "template",
+ "thiserror",
+]
+
+[[package]]
 name = "regex"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1212,6 +1228,7 @@ dependencies = [
  "ingest",
  "inspect",
  "model",
+ "rebuild",
  "serde",
  "serde_json",
  "shots",

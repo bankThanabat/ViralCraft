@@ -1,0 +1,79 @@
+---
+source: crates/rebuild/src/prompt.rs
+expression: "prompt(&assets(), Some(&script))"
+---
+# Rebuild: counting cards on the beat
+
+Remake this format with the user's own clips, in any editor. Work through the steps in order. Times are frames at 30 fps: f30 is one second. A range from fA to fB ends just before fB.
+
+## 1. Sequence
+- 1080 x 1920 (9:16), 30 fps, 180 frames (6.000s)
+- import every clip listed under "Your clips"
+- a clip of another size or shape is scaled to fill the frame and the overflow cropped; no black bars
+
+## 2. Picture
+Fill each slot with footage that matches "fill with". Cut where the original cut so the rhythm stays. Never stretch or slow a clip to fill time; trim instead. Pick clips by looking at their thumbnails.
+
+| slot | from | to | length | fill with | clips long enough |
+|------|------|----|--------|-----------|-------------------|
+| HOOK | f0 | f60 | 2.000s | the first item, held still and centred | pour.mp4 |
+| BUILD | f60 | f120 | 2.000s | the second item, same framing | pour.mp4 |
+| PAYOFF | f120 | f180 | 2.000s | the result, wider | pour.mp4 |
+
+Shots inside the slots:
+
+| shot | from | to | length | slot | camera |
+|------|------|----|--------|------|--------|
+| 1 | f0 | f60 | 2.000s | HOOK | unknown |
+| 2 | f60 | f120 | 2.000s | BUILD | unknown |
+| 3 | f120 | f180 | 2.000s | PAYOFF | unknown |
+
+## 3. Captions
+Make every caption editable text, not burned into the picture. Positions are the centre of the text as a fraction of the frame (0,0 top left) and in pixels.
+
+- style C1: Arial Black, about 118 px, fill #FEFFFF, outline #000104, box none, all caps
+
+Text: the user's script, one line per caption in order.
+
+| id | from | to | kind | style | text | original | centre | pixels | animation |
+|----|------|----|------|-------|------|----------|--------|--------|-----------|
+| c1 | f0 | f60 | caption | C1 | FIRST | ONE | (0.50, 0.18) | (539, 342) | none |
+| c2 | f60 | f120 | caption | C1 | SECOND | TWO | (0.50, 0.50) | (538, 955) | none |
+
+## 4. Transitions
+Every shot change is a hard cut.
+
+## 5. Sound
+- clip audio: keep the speech of the clips you place
+- music from f15 to f180, with a steady beat
+  - clips with music in them: shelf.mp4
+- [tick] at f14: found in pour.mp4 at f40
+
+## 6. Look
+flat primaries: solid colour cards, no grade
+
+## 7. Rules
+- Cut on the beat, every 2 seconds.
+- One short uppercase word per caption, centred.
+- The payoff has no caption.
+
+## 8. Done when
+- the sequence is 180 frames at 30 fps and 1080 x 1920
+- the picture cuts at f60, f120 (each within 1 frame)
+- every caption above shows at its frames, place and style, as editable text
+- no frame is black or empty, and no clip is stretched
+- the export plays start to end; watch it next to the original
+
+## Your clips
+From assets.
+
+### pour.mp4
+4.500s · 720 x 1280 · 30 fps · thumbnail rebuild/thumbs/pour.jpg
+speech: first we pour [tick] (en)
+
+### shelf.mp4
+1.500s · 720 x 1280 · 30 fps · thumbnail rebuild/thumbs/shelf.jpg
+speech: no speech
+
+### shelf-copy.mp4
+same file as shelf.mp4; skip it

@@ -1,6 +1,6 @@
 //! Small formatting rules shared by every section.
 
-use model::{RationalTime, Transform};
+use model::{Animation, RationalTime, Transform};
 
 /// `1.800s (f54)`: seconds for people, the frame for tools.
 pub fn time(t: RationalTime) -> String {
@@ -25,6 +25,21 @@ pub fn norm(v: f64) -> String {
 /// Text safe to put in a table cell.
 pub fn cell(text: &str) -> String {
     text.replace('|', "\\|").replace('\n', " / ")
+}
+
+/// A caption's entrance in a few words.
+pub fn animation(a: Option<&Animation>) -> String {
+    match a {
+        None => "none".to_string(),
+        Some(Animation::PopIn { frames, from_scale }) => {
+            format!("pop-in {frames}f from {}%", num(*from_scale))
+        }
+        Some(Animation::Slide { frames, dx, dy }) => format!(
+            "slide in {frames}f from offset ({}, {})",
+            norm(*dx),
+            norm(*dy)
+        ),
+    }
 }
 
 /// The camera transform of a shot in one line.

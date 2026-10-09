@@ -1,0 +1,21 @@
+[package]
+name = "rebuild"
+description = "Reads the user's own clips for the optional rebuild step"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+audio = { path = "../audio" }
+editspec = { path = "../editspec" }
+ingest = { path = "../ingest" }
+model.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+template = { path = "../template" }
+thiserror.workspace = true
+
+[dev-dependencies]
+insta = "1"
+tempfile = "3"

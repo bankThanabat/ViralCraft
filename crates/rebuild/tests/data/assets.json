@@ -1,0 +1,162 @@
+{
+  "version": 1,
+  "folder": "assets",
+  "clips": [
+    {
+      "file": "pour.mp4",
+      "sha256": "aa",
+      "seconds": 4.5,
+      "rate": {
+        "num": 30,
+        "den": 1
+      },
+      "frames": 135,
+      "width": 720,
+      "height": 1280,
+      "aspect": "9:16",
+      "has_audio": true,
+      "language": "en",
+      "transcript": "first we pour [tick]",
+      "words": [
+        {
+          "text": "first",
+          "start": {
+            "value": 3,
+            "rate": {
+              "num": 30,
+              "den": 1
+            }
+          },
+          "duration": {
+            "value": 8,
+            "rate": {
+              "num": 30,
+              "den": 1
+            }
+          },
+          "confidence": 0.9
+        },
+        {
+          "text": "we",
+          "start": {
+            "value": 12,
+            "rate": {
+              "num": 30,
+              "den": 1
+            }
+          },
+          "duration": {
+            "value": 4,
+            "rate": {
+              "num": 30,
+              "den": 1
+            }
+          },
+          "confidence": 0.9
+        },
+        {
+          "text": "pour",
+          "start": {
+            "value": 17,
+            "rate": {
+              "num": 30,
+              "den": 1
+            }
+          },
+          "duration": {
+            "value": 9,
+            "rate": {
+              "num": 30,
+              "den": 1
+            }
+          },
+          "confidence": 0.9
+        }
+      ],
+      "sounds": [
+        {
+          "label": "tick",
+          "start": {
+            "value": 40,
+            "rate": {
+              "num": 30,
+              "den": 1
+            }
+          },
+          "duration": {
+            "value": 14,
+            "rate": {
+              "num": 30,
+              "den": 1
+            }
+          },
+          "source": "yamnet"
+        }
+      ],
+      "music": [],
+      "thumbnail": "rebuild/thumbs/pour.jpg"
+    },
+    {
+      "file": "shelf.mp4",
+      "sha256": "bb",
+      "seconds": 1.5,
+      "rate": {
+        "num": 30,
+        "den": 1
+      },
+      "frames": 45,
+      "width": 720,
+      "height": 1280,
+      "aspect": "9:16",
+      "has_audio": true,
+      "language": "",
+      "transcript": "",
+      "words": [],
+      "sounds": [],
+      "music": [
+        {
+          "range": {
+            "start": {
+              "value": 0,
+              "rate": {
+                "num": 30,
+                "den": 1
+              }
+            },
+            "duration": {
+              "value": 45,
+              "rate": {
+                "num": 30,
+                "den": 1
+              }
+            }
+          },
+          "level_db": -30.0,
+          "beat": false
+        }
+      ],
+      "thumbnail": "rebuild/thumbs/shelf.jpg"
+    },
+    {
+      "file": "shelf-copy.mp4",
+      "sha256": "bb",
+      "duplicate_of": "shelf.mp4",
+      "seconds": 1.5,
+      "rate": {
+        "num": 30,
+        "den": 1
+      },
+      "frames": 45,
+      "width": 720,
+      "height": 1280,
+      "aspect": "9:16",
+      "has_audio": true,
+      "language": "",
+      "transcript": "",
+      "words": [],
+      "sounds": [],
+      "music": [],
+      "thumbnail": ""
+    }
+  ]
+}

@@ -8,6 +8,7 @@ pub mod audio;
 pub mod inspect;
 pub mod judgement;
 pub mod probe;
+pub mod rebuild;
 pub mod shots;
 pub mod time;
 pub mod tools;
@@ -19,5 +20,6 @@ pub use inspect::{
 };
 pub use judgement::{Judgement, Needs};
 pub use probe::{AudioInfo, Probe, SafeZone};
+pub use rebuild::{Asset, Assets};
 pub use shots::{Candidate, Segment, Shots, Transition, TransitionKind};
 pub use time::{Fps, RationalTime, TimeError, TimeRange};

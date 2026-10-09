@@ -67,6 +67,22 @@ enum Command {
     Finalize { run_dir: PathBuf },
     /// Write captions.vtt, captions.ass and timeline.otio from the measurements.
     Exports { run_dir: PathBuf },
+    /// Optional rebuild step: read the user's own clips (probe, transcript,
+    /// thumbnail) into rebuild/assets.json. Never changes the clips.
+    Assets {
+        run_dir: PathBuf,
+        /// Folder with the clips; asks for one if it has none.
+        #[arg(long, default_value = "assets")]
+        assets: PathBuf,
+    },
+    /// Optional rebuild step: write rebuild/REBUILD-PROMPT.md, steps any
+    /// editor agent can follow to remake the format with the user's clips.
+    Prompt {
+        run_dir: PathBuf,
+        /// The user's caption lines, one per line, used in order.
+        #[arg(long)]
+        script: Option<PathBuf>,
+    },
     /// Write EDIT-SPEC.md from the measurements in a run directory.
     Editspec { run_dir: PathBuf },
     /// Detect cuts, dissolves and flashes; extract every frame (720 px short side).
@@ -82,6 +98,8 @@ impl Command {
     fn name(&self) -> &'static str {
         match self {
             Command::Analyze { .. } => "analyze",
+            Command::Assets { .. } => "assets",
+            Command::Prompt { .. } => "prompt",
             Command::Clean { .. } => "clean",
             Command::Doctor { .. } => "doctor",
             Command::Ingest { .. } => "ingest",
@@ -130,6 +148,37 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
             safe_zone,
             threshold,
         }),
+        Command::Assets { run_dir, assets } => {
+            let folder = rebuild::resolve_folder(&assets, prompt::ask_path)?;
+            eprintln!("assets: {}", folder.display());
+            let read = rebuild::run(&run_dir, &folder)?;
+            let clips: Vec<Value> = read
+                .clips
+                .iter()
+                .map(|c| {
+                    json!({
+                        "file": c.file,
+                        "seconds": (c.seconds * 10.0).round() / 10.0,
+                        "language": c.language,
+                        "words": c.words.len(),
+                        "duplicate_of": c.duplicate_of,
+                    })
+                })
+                .collect();
+            Ok((
+                json!({
+                    "ok": true,
+                    "folder": folder,
+                    "clips": clips,
+                    "files": [run_dir.join(rebuild::REBUILD_DIR).join(rebuild::ASSETS_FILE)],
+                }),
+                true,
+            ))
+        }
+        Command::Prompt { run_dir, script } => {
+            let path = rebuild::prompt::run(&run_dir, script.as_deref())?;
+            Ok((json!({ "ok": true, "files": [path] }), true))
+        }
         Command::Clean { run_dir } => pipeline::clean(&run_dir),
         Command::Doctor { install } => doctor_cmd::run(install),
         Command::Ingest {

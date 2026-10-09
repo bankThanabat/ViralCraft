@@ -79,7 +79,8 @@ pub fn run(input: &Path, out_root: &Path, safe_zone: &str) -> Result<PathBuf, In
     Ok(run_dir)
 }
 
-fn ffprobe(path: &Path) -> Result<probe::Parsed, IngestError> {
+/// What ffprobe says about a media file's first video and audio streams.
+pub fn ffprobe(path: &Path) -> Result<probe::Parsed, IngestError> {
     let json = tools::run(
         "ffprobe",
         &[

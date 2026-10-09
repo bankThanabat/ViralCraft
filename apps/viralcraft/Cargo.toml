@@ -17,6 +17,7 @@ editspec = { path = "../../crates/editspec" }
 exports = { path = "../../crates/exports" }
 ingest = { path = "../../crates/ingest" }
 inspect = { path = "../../crates/inspect" }
+rebuild = { path = "../../crates/rebuild" }
 shots = { path = "../../crates/shots" }
 template = { path = "../../crates/template" }
 which = "8"

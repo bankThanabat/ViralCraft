@@ -73,7 +73,7 @@ pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
                 words,
                 language,
                 rhythm::analyze(&samples, 16_000),
-                bed::bed_spans(&samples, 16_000),
+                music_beds(&samples, rate, info.offset, probe.frames),
                 name_sounds(&samples, rate, info.offset)?,
             )
         }
@@ -99,17 +99,11 @@ pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
         }
         _ => None,
     };
-    let mut music: Vec<MusicSpan> = beds
-        .iter()
-        .map(|b| {
-            let (start, end) = (at(b.start).value, at(b.end).value.min(probe.frames));
-            MusicSpan {
-                range: TimeRange::from_frames(start, end - start, rate),
-                level_db: Some(b.level_db),
-                beat: beat_span.is_some_and(|(s, e)| s < end && e > start),
-            }
-        })
-        .collect();
+    let mut music = beds;
+    for m in &mut music {
+        let (start, end) = (m.range.start.value, m.range.end_frame());
+        m.beat = beat_span.is_some_and(|(s, e)| s < end && e > start);
+    }
     if let Some((s, e)) = beat_span {
         if !music.iter().any(|m| m.beat) {
             music.push(MusicSpan {
@@ -142,8 +136,6 @@ pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
     Ok(audio)
 }
 
-/// Transcribes 16 kHz mono samples. Word times land on the video clock at
-/// `rate`, shifted by the audio `offset` from `probe.json`.
 /// Multilingual whisper models, biggest first, with their DTW presets.
 const MULTILINGUAL: [&str; 3] = ["ggml-large-v3.bin", "ggml-medium.bin", "ggml-small.bin"];
 
@@ -325,12 +317,29 @@ pub fn read_wav_16k_mono(path: &Path) -> Result<Vec<f32>, AudioError> {
         .map_err(wav_err)
 }
 
-/// Decodes the source's first audio stream to 16 kHz mono via a temporary
-/// WAV in the run directory.
-fn extract_16k_mono(run_dir: &Path, source: &str) -> Result<Vec<f32>, AudioError> {
+/// Background beds (music or another continuous bed) on the video clock at
+/// `rate`, cut at `frames`. Beat flags are left off.
+pub fn music_beds(samples: &[f32], rate: Fps, offset: RationalTime, frames: i64) -> Vec<MusicSpan> {
+    let at = |s: f64| RationalTime::from_seconds(s + offset.to_seconds(), rate);
+    bed::bed_spans(samples, 16_000)
+        .iter()
+        .map(|b| {
+            let (start, end) = (at(b.start).value, at(b.end).value.min(frames));
+            MusicSpan {
+                range: TimeRange::from_frames(start, end - start, rate),
+                level_db: Some(b.level_db),
+                beat: false,
+            }
+        })
+        .collect()
+}
+
+/// Decodes the first audio stream of `source` (a path relative to
+/// `work_dir`, or absolute) to 16 kHz mono via a temporary WAV there.
+pub fn extract_16k_mono(work_dir: &Path, source: &str) -> Result<Vec<f32>, AudioError> {
     const TMP: &str = "audio16k.wav";
     tools::run_in(
-        run_dir,
+        work_dir,
         "ffmpeg",
         &[
             "-y",
@@ -349,7 +358,7 @@ fn extract_16k_mono(run_dir: &Path, source: &str) -> Result<Vec<f32>, AudioError
             TMP,
         ],
     )?;
-    let path = run_dir.join(TMP);
+    let path = work_dir.join(TMP);
     let samples = read_wav_16k_mono(&path);
     let _ = fs::remove_file(&path);
     samples
