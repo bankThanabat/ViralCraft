@@ -1,7 +1,7 @@
 # ADR-0002: The agent judges, the CLI measures
 
 ## Status
-Accepted
+Accepted. Amended by ADR-0006: an optional cloud voice, with the user's own key.
 
 ## Date
 2026-10-09
