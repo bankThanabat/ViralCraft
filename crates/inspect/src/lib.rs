@@ -115,7 +115,8 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
     }
 
     let mut events = Vec::new();
-    for (i, c) in captions::group_lines(labeled).into_iter().enumerate() {
+    let grouped = captions::keep_captions(captions::group_lines(captions::filter_lines(labeled)));
+    for (i, c) in grouped.into_iter().enumerate() {
         let img = load((c.start + c.end) / 2)?;
         let colors = style::caption_colors(&img, pixel_box(&c.bounds, &img, 2));
         let line_height = c.line_boxes.iter().map(|b| b.h).sum::<f64>() / c.line_boxes.len() as f64;

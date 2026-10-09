@@ -203,6 +203,32 @@ pub fn label(spans: Vec<Span>, mut recognize: impl FnMut(&Span) -> String) -> Ve
     out
 }
 
+/// Letters or digits a line needs to count as text. Cartoon line art and
+/// set details read as one or two characters; real captions rarely do.
+const MIN_TEXT_CHARS: usize = 3;
+/// Captions on screen for fewer frames than this are detection flicker.
+const MIN_CAPTION_FRAMES: u64 = 6;
+
+pub fn is_text_line(text: &str) -> bool {
+    text.chars().filter(|c| c.is_alphanumeric()).count() >= MIN_TEXT_CHARS
+}
+
+/// Drops lines that are not text, before they can join a real caption.
+pub fn filter_lines(spans: Vec<LabeledSpan>) -> Vec<LabeledSpan> {
+    spans
+        .into_iter()
+        .filter(|s| is_text_line(&s.text))
+        .collect()
+}
+
+/// Drops captions too brief to be read.
+pub fn keep_captions(captions: Vec<Caption>) -> Vec<Caption> {
+    captions
+        .into_iter()
+        .filter(|c| c.end - c.start >= MIN_CAPTION_FRAMES)
+        .collect()
+}
+
 /// Groups lines that appear and disappear together and sit directly above
 /// one another into one caption.
 pub fn group_lines(mut spans: Vec<LabeledSpan>) -> Vec<Caption> {
@@ -445,6 +471,41 @@ mod tests {
         assert_eq!((stacked.start, stacked.end), (10, 30));
         assert!((stacked.bounds.cy - 0.43).abs() < 1e-9);
         assert!((stacked.bounds.h - 0.11).abs() < 1e-9);
+    }
+
+    #[test]
+    fn line_art_read_as_a_letter_or_two_is_not_text() {
+        for noise in ["T", "7", "w", "dC", "1", "?!", "  C  "] {
+            assert!(!is_text_line(noise), "{noise:?} should be noise");
+        }
+        for real in [
+            "BUT",
+            "like",
+            "you know?",
+            "@theintrovertedattorney",
+            "1... think that's everything!",
+        ] {
+            assert!(is_text_line(real), "{real:?} should be text");
+        }
+    }
+
+    #[test]
+    fn captions_shorter_than_six_frames_are_flicker() {
+        let line = |start: u64, end: u64, text: &str| LabeledSpan {
+            start,
+            end,
+            text: text.into(),
+            settled: BASE,
+            animation: None,
+        };
+        let spans = vec![
+            line(10, 15, "flicker"),
+            line(20, 26, "steady"),
+            line(30, 60, "T"),
+        ];
+        let captions = keep_captions(group_lines(filter_lines(spans)));
+        let texts: Vec<&str> = captions.iter().map(|c| c.lines[0].as_str()).collect();
+        assert_eq!(texts, ["steady"]);
     }
 
     #[test]
