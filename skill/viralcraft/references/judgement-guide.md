@@ -12,7 +12,8 @@ The shape, with every field:
   "format_name": "...",
   "hook": { "type": "...", "window": { "start": 0, "duration": 54 }, "why": "..." },
   "shots": [ { "n": 1, "role": "...", "speech": "...", "on_screen": "..." } ],
-  "captions": [ { "id": "c1", "kind": "...", "font_substitute": "...", "text_fix": "..." } ],
+  "captions": [ { "id": "c1", "kind": "...", "font_substitute": "...", "text_fix": "..." },
+                { "id": "c2", "same_as": "c1" } ],
   "overlays": [ { "id": "o1", "kind": "...", "description": "..." } ],
   "look": { "name": "...", "match_by": "..." },
   "story_beats": [ { "start": 0, "duration": 54, "label": "hook: claim" } ],
@@ -41,7 +42,8 @@ first words of the transcript.
 
 ## shots[n]
 
-One entry per shot in EDIT-SPEC.md. Look at the shot's middle frame, and its
+`n` is the shot number shown in EDIT-SPEC.md (1, 2, 3...), not a position
+in the list. One entry per shot in EDIT-SPEC.md. Look at the shot's middle frame, and its
 first and last frames if anything moves.
 
 - `on_screen`: what the viewer sees, in a few words. Describe framing too:
@@ -76,8 +78,14 @@ gives its box; the text is inside it.
   the text exactly as shown, including emoji and deliberate misspellings. Do
   not take it from the transcript.
 
-Two ids that are the same caption on screen (one was split by something
-moving behind it) get the same kind, font and text.
+- `same_as`: when this id is another piece of a caption already judged,
+  give only `"same_as": "<that id>"`. Something moving behind a caption
+  (sparkles, a hand) splits it into pieces with garbage OCR text, and a
+  caption that types or writes on comes out as one piece per stage. Judge
+  the first piece fully, with the finished text in `text_fix`, and point
+  every other piece at it. Finalize joins them into one caption from the
+  first frame to the last. A piece that is a different caption at the same
+  place must not be joined.
 
 ## overlays[id]
 
@@ -87,6 +95,10 @@ Look at the overlay's middle frame inside its box.
   when it is part of the scene (a hand, a moving object). `not an overlay` is
   removed.
 - `description`: what it is, in a few words.
+
+## A-roll / B-roll map
+
+Nothing to write: finalize builds it from the shot roles.
 
 ## look
 

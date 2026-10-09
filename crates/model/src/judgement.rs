@@ -54,6 +54,9 @@ pub struct CaptionNote {
     pub font_substitute: Option<String>,
     /// The correct text when OCR misread it.
     pub text_fix: Option<String>,
+    /// Another id showing the same caption on screen; this piece's frames
+    /// are joined to that caption and it needs no other fields.
+    pub same_as: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -129,7 +132,45 @@ impl Judgement {
                 c.text = fix;
             }
         }
+        // Join pieces judged to be one caption into it, earliest to latest.
+        let mut i = 0;
+        while i < captions.len() {
+            let target = self.same_as_root(&captions[i].id);
+            match target.and_then(|t| captions.iter().position(|c| c.id == t)) {
+                Some(t) if t != i => {
+                    let piece = captions.remove(i);
+                    let t = if t > i { t - 1 } else { t };
+                    let into = &mut captions[t];
+                    let start = into.range.start.value.min(piece.range.start.value);
+                    let end = into.range.end_frame().max(piece.range.end_frame());
+                    into.range =
+                        crate::TimeRange::from_frames(start, end - start, into.range.start.rate);
+                }
+                _ => i += 1,
+            }
+        }
         removed
+    }
+
+    /// The caption a `same_as` chain ends at; `None` without one, or when
+    /// the chain loops.
+    fn same_as_root(&self, id: &str) -> Option<String> {
+        let mut at = self
+            .caption(id)?
+            .same_as
+            .clone()
+            .filter(|t| !t.trim().is_empty())?;
+        for _ in 0..self.captions.len() {
+            match self
+                .caption(&at)
+                .and_then(|n| n.same_as.clone())
+                .filter(|t| !t.trim().is_empty())
+            {
+                Some(next) => at = next,
+                None => return Some(at),
+            }
+        }
+        None
     }
 
     /// Whether an overlay stays: everything except `not an overlay`.
@@ -157,6 +198,18 @@ impl Judgement {
         }
         for id in &needs.captions {
             let note = self.caption(id);
+            if let Some(target) = note
+                .and_then(|c| c.same_as.as_deref())
+                .filter(|t| !t.trim().is_empty())
+            {
+                match self.same_as_root(id) {
+                    Some(root) if needs.captions.contains(&root) && root != *id => {}
+                    _ => out.push(format!(
+                        "captions[{id}].same_as (no caption {target} to join, or a loop)"
+                    )),
+                }
+                continue;
+            }
             match note.and_then(|c| c.kind.as_deref()) {
                 None | Some("") => out.push(format!("captions[{id}].kind")),
                 Some(k) if !CAPTION_KINDS.contains(&k) => out.push(format!(
@@ -324,6 +377,65 @@ mod tests {
         assert_eq!(kept.len(), 1);
         assert!(j.keeps_overlay("o2"), "unjudged overlays stay");
         assert!(!j.keeps_overlay("o1"), "'not an overlay' is dropped");
+    }
+
+    fn at(mut c: crate::CaptionEvent, start: i64, len: i64) -> crate::CaptionEvent {
+        c.range = crate::TimeRange::from_frames(start, len, c.range.start.rate);
+        c
+    }
+
+    #[test]
+    fn pieces_of_one_caption_join_into_it() {
+        // A Thai title split into pieces by sparkles moving behind it.
+        let mut j: Judgement = serde_json::from_str(COMPLETE).unwrap();
+        j.captions.push(CaptionNote {
+            id: "c3".into(),
+            same_as: Some("c1".into()),
+            ..CaptionNote::default()
+        });
+        j.captions.push(CaptionNote {
+            id: "c4".into(),
+            same_as: Some("c3".into()),
+            ..CaptionNote::default()
+        });
+        let mut captions = vec![
+            at(caption("c3", "garbage"), 0, 10),
+            at(caption("c1", "title"), 12, 20),
+            at(caption("c4", "more garbage"), 40, 15),
+        ];
+        j.apply_to_captions(&mut captions);
+        assert_eq!(captions.len(), 1);
+        assert_eq!(captions[0].id, "c1");
+        assert_eq!(captions[0].text, "title");
+        assert_eq!(
+            (captions[0].range.start.value, captions[0].range.end_frame()),
+            (0, 55)
+        );
+    }
+
+    #[test]
+    fn a_piece_needs_only_a_caption_to_join() {
+        let mut j: Judgement = serde_json::from_str(COMPLETE).unwrap();
+        let piece = |id: &str, to: &str| CaptionNote {
+            id: id.into(),
+            same_as: Some(to.into()),
+            ..CaptionNote::default()
+        };
+        j.captions.push(piece("c3", "c1"));
+        j.captions.push(piece("c4", "c99"));
+        j.captions.push(piece("c5", "c6"));
+        j.captions.push(piece("c6", "c5"));
+        let mut n = needs();
+        n.captions
+            .extend(["c3", "c4", "c5", "c6"].map(String::from));
+        assert_eq!(
+            j.missing(&n),
+            [
+                "captions[c4].same_as (no caption c99 to join, or a loop)",
+                "captions[c5].same_as (no caption c6 to join, or a loop)",
+                "captions[c6].same_as (no caption c5 to join, or a loop)",
+            ]
+        );
     }
 
     #[test]

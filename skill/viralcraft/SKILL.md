@@ -45,7 +45,8 @@ error says there is no video or more than one, ask the user which file and run
 
 Read `<run_dir>/EDIT-SPEC.md`. Every `TODO:` is yours, and its
 `## Judgement checklist` lists them all. Look at frames before deciding:
-`<run_dir>/frames/f00042.jpg` is frame 42 (720 px on the short side). Look at
+`<run_dir>/frames/f00042.jpg` is frame 42 (720 px on the short side, or the
+video's own size when it is smaller). Look at
 the middle frame of each shot, the middle frame of each caption, and every
 frame of the hook window. Write `<run_dir>/judgement.json`.
 
@@ -61,8 +62,11 @@ Rules that matter most:
   and creators spell on purpose.
 - **Scene text** (signs, packaging, logos in the shot) is `scene-text`; it is
   removed from the spec. The creator's handle is `watermark`.
-- **One caption, many ids.** If two ids are the same caption on screen (a
-  sparkle or a hand moving behind it split it), judge both the same way.
+- **One caption, many ids.** Something moving behind a caption (sparkles, a
+  hand, a whisk) can split it into several ids. Judge the first one fully
+  and give every other piece only `"same_as": "<first id>"`; finalize joins
+  their frames into one caption. A caption that types or writes on is one
+  caption too: its partial pieces are `same_as` the finished one.
 - Every caption that is not `scene-text` needs a `font_substitute`: a common
   font that looks closest (weight, width, italic, rounded or not).
 - Times are frame numbers at the video's rate, as in EDIT-SPEC.md.

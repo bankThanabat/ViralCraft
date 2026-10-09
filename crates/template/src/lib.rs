@@ -181,12 +181,12 @@ pub fn render(x: &Inputs) -> String {
     }
     for seg in segs {
         let motion = x.inspect.motion.iter().find(|m| m.shot == seg.n);
-        let _ = writeln!(
-            d,
-            "- camera, shot {}: {}",
-            seg.n,
-            transform_summary(motion.and_then(|m| m.transform.as_ref()))
-        );
+        let path = format!("shots[{}].camera", seg.n);
+        let camera = match j.overrides.iter().find(|o| o.path == path) {
+            Some(o) => o.value.clone(),
+            None => transform_summary(motion.and_then(|m| m.transform.as_ref())),
+        };
+        let _ = writeln!(d, "- camera, shot {}: {camera}", seg.n);
     }
     if a.music.is_empty() {
         let _ = writeln!(d, "- music: none");
@@ -292,6 +292,13 @@ mod tests {
         let doc = render(&judged());
         assert!(doc.contains("cuts: f60, f120"), "{doc}");
         assert!(doc.contains("120 bpm"));
+    }
+
+    #[test]
+    fn a_camera_override_replaces_the_measured_move() {
+        // cuts-3's judgement overrides shot 1's camera to "static".
+        let doc = render(&judged());
+        assert!(doc.contains("- camera, shot 1: static\n"), "{doc}");
     }
 
     #[test]
