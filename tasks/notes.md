@@ -30,3 +30,27 @@ white on both. Regression tests use real crops in
 
 Font size is an estimate from line height: 104 px estimated vs 96 px drawn on
 cuts-3 (+8%).
+
+## First real clip (Phase 2 checkpoint, task 11b)
+
+`inbox/Video by theintrovertedattorney.mp4`: 56 s, 1080x1920 VP9, 30 fps,
+animated cartoon, voiceover over a music bed, burned-in dialogue captions,
+a persistent boxed title, a watermark, a product insert and a punchline cut.
+
+| | first run | after task 11b |
+|---|---|---|
+| shots | 4, correct | 4, correct |
+| transcript | 132 words, near verbatim | 130 words + 2 `sighs` sound events |
+| music | none (beat confidence 0.16) | bed 1 s to 52 s at -29.5 dB, second bed under the punchline |
+| caption events | 523 (452 line-art flicker) | 35: title, watermark, 4 scene text, 29 dialogue |
+| title style | white, grey outline | white on #010002 box, no outline |
+| motion | static, but a bogus two-keyframe shot | every shot one keyframe at 100% |
+| overlays | 1 (animation) | 2 (both character animation, not stickers) |
+| inspect time | 98 s at 540x960 | 114 s at 720x1280 |
+
+Still wrong: OCR on the hand-lettered dialogue font misreads words either way
+("qoes", "Tike", "horming", the lone "I" in the title). Phase 3 can use the
+transcript's spelling for captions whose words match speech in the same
+window. Overlay detection fires on cartoon animation; the agent dismisses it.
+Detection measured 24.8 ms per frame on this run at 720x1280 against 62 ms
+on the fixture test; the clip's total time is the reliable number.

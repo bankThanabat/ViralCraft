@@ -271,7 +271,7 @@ anchor, size, in/out. Kind is left to judgement. Allowed to be conservative.
 
 **Estimated scope:** M
 
-## Task 11b: fixes from the first real clip
+## Task 11b: fixes from the first real clip ✅ done
 
 **Description:** The Phase 2 checkpoint run on a real 56 s cartoon clip
 (720x1280, voice over a music bed, burned-in dialogue captions) found six
@@ -286,8 +286,8 @@ problems. Fix them, then rerun the clip and compare.
 - [x] judgement.json can mark a caption as scene text (SPEC.md only; code in task 15)
 
 **Verification:**
-- [ ] Tests pass: `cargo test --workspace` and `cargo test --workspace --release -- --ignored`
-- [ ] Manual check: rerun the real clip and compare against the first run
+- [x] Tests pass: `cargo test --workspace` and `cargo test --workspace --release -- --ignored`
+- [x] Manual check: rerun the real clip and compare against the first run
 
 **Dependencies:** 11
 
@@ -296,7 +296,7 @@ problems. Fix them, then rerun the clip and compare.
 ## Checkpoint: Measurement
 - [x] All Phase 2 ignored tests pass on the fixtures (10 tests, 21 s release)
 - [x] Detection time per frame recorded: 25 to 33 ms (tasks/notes.md); fallback deferred to the real-clip run
-- [ ] Run on one real viral clip supplied by the human; estimators judged
+- [x] Run on one real viral clip supplied by the human; estimators judged (tasks/notes.md)
 - [ ] Review with human before proceeding
 
 ## Phase 3: Outputs
