@@ -75,7 +75,8 @@ Fixture: captions.ass burned onto text-free cuts-3 scenes with libass and
 read back with ocrs lands within 0.008 of the frame of the original
 positions (ONE -0.001/+0.005, TWO -0.001/-0.001, THREE -0.002/-0.008).
 
-Real clip (`viralcraft preview`, our captions over the originals):
+Real clip (our captions burned over the originals with the since-removed
+`viralcraft preview` command):
 - the boxed title matches exactly: position, box, colour and size
 - dialogue lines land in the right place and colour, but the font differs
   (Arial placeholder; the original is a bold italic we do not detect)

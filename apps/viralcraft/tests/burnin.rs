@@ -1,7 +1,8 @@
 //! Burns our captions.ass onto text-free video and reads them back, to
-//! check the caption file puts text where the original had it. Needs an
-//! ffmpeg with libass (`viralcraft doctor --install` offers one) and the
-//! ocrs models. `cargo test -p viralcraft --release -- --ignored`.
+//! check the caption file puts text where the original had it. A
+//! development check: needs an ffmpeg with libass (on macOS:
+//! `brew install ffmpeg-full`) and the ocrs models.
+//! `cargo test -p viralcraft --release -- --ignored`.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -14,14 +15,26 @@ fn read<T: serde::de::DeserializeOwned>(name: &str) -> T {
     serde_json::from_str(&std::fs::read_to_string(data().join(name)).unwrap()).unwrap()
 }
 
+/// An ffmpeg with the libass `ass` filter: the one on PATH, or Homebrew's
+/// keg-only ffmpeg-full. A development tool only; users never need it.
 fn libass_ffmpeg() -> Option<PathBuf> {
-    let candidates = std::iter::once(PathBuf::from("ffmpeg"))
-        .chain(doctor::PREVIEW_CANDIDATES.iter().map(PathBuf::from));
-    candidates.into_iter().find(|p| {
+    let has_ass = |filters: &str| {
+        filters
+            .lines()
+            .any(|l| l.split_whitespace().nth(1) == Some("ass"))
+    };
+    [
+        "ffmpeg",
+        "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
+        "/usr/local/opt/ffmpeg-full/bin/ffmpeg",
+    ]
+    .into_iter()
+    .map(PathBuf::from)
+    .find(|p| {
         Command::new(p)
             .args(["-hide_banner", "-filters"])
             .output()
-            .map(|o| doctor::has_ass_filter(&String::from_utf8_lossy(&o.stdout)))
+            .map(|o| has_ass(&String::from_utf8_lossy(&o.stdout)))
             .unwrap_or(false)
     })
 }
@@ -85,55 +98,4 @@ fn burned_captions_land_where_the_originals_were() {
             "{text} lands ({dx:+.3}, {dy:+.3}) away"
         );
     }
-}
-
-#[test]
-#[ignore = "needs ffmpeg with libass"]
-fn preview_writes_the_source_with_our_captions_on_top() {
-    if libass_ffmpeg().is_none() {
-        eprintln!("skipping: no ffmpeg with libass");
-        return;
-    }
-    let dir = tempfile::tempdir().unwrap();
-    let video = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/cuts-3.mp4");
-    std::fs::copy(&video, dir.path().join("source.cfr.mp4")).unwrap();
-    for f in ["probe.json", "audio.json", "inspect.json"] {
-        std::fs::copy(data().join(f), dir.path().join(f)).unwrap();
-    }
-    let probe: model::Probe = read("probe.json");
-    let inspect: model::Inspect = read("inspect.json");
-    std::fs::write(
-        dir.path().join("captions.ass"),
-        exports::ass::write(&probe, &inspect),
-    )
-    .unwrap();
-
-    let out = Command::new(env!("CARGO_BIN_EXE_viralcraft"))
-        .args(["preview", dir.path().to_str().unwrap()])
-        .output()
-        .unwrap();
-
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stdout)
-    );
-    let preview = dir.path().join("preview.mp4");
-    let frames = model::tools::run(
-        "ffprobe",
-        &[
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-count_frames",
-            "-show_entries",
-            "stream=nb_read_frames",
-            "-of",
-            "csv=p=0",
-            preview.to_str().unwrap(),
-        ],
-    )
-    .unwrap();
-    assert_eq!(frames.trim(), "180");
 }

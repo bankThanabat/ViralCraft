@@ -84,21 +84,6 @@ impl Os {
 
 /// Looks up an executable on `PATH`.
 pub type FindTool<'a> = Box<dyn Fn(&str) -> Option<PathBuf> + 'a>;
-/// Development only, for the caption preview and burn-in tests (users are
-/// not offered it): places an ffmpeg with libass is commonly installed,
-/// besides `PATH`. Homebrew's `ffmpeg-full` is keg-only, so not on `PATH`.
-pub const PREVIEW_CANDIDATES: [&str; 2] = [
-    "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
-    "/usr/local/opt/ffmpeg-full/bin/ffmpeg",
-];
-
-/// Whether `ffmpeg -filters` output lists the `ass` filter.
-pub fn has_ass_filter(filters: &str) -> bool {
-    filters
-        .lines()
-        .any(|l| l.split_whitespace().nth(1) == Some("ass"))
-}
-
 /// Where to look. Injected so tests never depend on the machine they run on.
 pub struct Env<'a> {
     pub os: Os,
@@ -283,15 +268,6 @@ mod tests {
                     .then(|| PathBuf::from(format!("/usr/bin/{name}")))
             }),
         }
-    }
-
-    #[test]
-    fn the_ass_filter_is_spotted_in_ffmpeg_filter_lists() {
-        let with = " ... ass               V->V       Render ASS subtitles onto input video using the libass library.\n";
-        let without = " T.. drawbox           V->V       Draw a colored box on the input video.\n";
-        assert!(has_ass_filter(with));
-        assert!(!has_ass_filter(without));
-        assert!(!has_ass_filter(" ... assert_something V->V nope\n"));
     }
 
     #[test]

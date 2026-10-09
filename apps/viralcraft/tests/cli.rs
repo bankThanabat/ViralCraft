@@ -236,14 +236,11 @@ fn clean_removes_frames_and_the_normalized_video_only() {
 }
 
 #[test]
-fn the_caption_preview_is_a_development_tool_users_are_not_offered() {
+fn there_is_no_preview_command_and_doctor_offers_no_ffmpeg_full() {
     let dir = tempfile::tempdir().unwrap();
-    let help = viralcraft(&["--help"], dir.path());
-    let text = String::from_utf8_lossy(&help.stdout);
-    assert!(
-        text.contains("analyze") && !text.contains("preview"),
-        "{text}"
-    );
+    let preview = viralcraft(&["preview", dir.path().to_str().unwrap()], dir.path());
+    assert!(!preview.status.success());
+    assert!(String::from_utf8_lossy(&preview.stderr).contains("unrecognized subcommand"));
 
     let doctor = viralcraft(&["doctor"], dir.path());
     let summary = single_json_line(&doctor.stdout);

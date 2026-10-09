@@ -39,11 +39,6 @@ enum Command {
         #[arg(long, default_value_t = shots::DEFAULT_THRESHOLD)]
         threshold: f64,
     },
-    /// Development only: write preview.mp4, the video with our captions
-    /// burned on top, to check caption accuracy by eye. Needs an ffmpeg
-    /// with libass (on macOS: brew install ffmpeg-full).
-    #[command(hide = true)]
-    Preview { run_dir: PathBuf },
     /// Delete frames/ and source.cfr.mp4 from a finished run.
     Clean { run_dir: PathBuf },
     /// Check that the tools and model files ViralCraft needs are present.
@@ -88,7 +83,6 @@ impl Command {
         match self {
             Command::Analyze { .. } => "analyze",
             Command::Clean { .. } => "clean",
-            Command::Preview { .. } => "preview",
             Command::Doctor { .. } => "doctor",
             Command::Ingest { .. } => "ingest",
             Command::Shots { .. } => "shots",
@@ -137,7 +131,6 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
             threshold,
         }),
         Command::Clean { run_dir } => pipeline::clean(&run_dir),
-        Command::Preview { run_dir } => pipeline::preview(&run_dir),
         Command::Doctor { install } => doctor_cmd::run(install),
         Command::Ingest {
             file,

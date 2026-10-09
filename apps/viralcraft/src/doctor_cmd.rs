@@ -44,28 +44,6 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
     Ok((summary, report.ok))
 }
 
-/// Development only: the first ffmpeg with the libass `ass` filter (the
-/// one on `PATH`, then the usual keg-only install places), for
-/// `viralcraft preview`. Users are not offered one.
-pub fn find_preview_ffmpeg() -> Option<std::path::PathBuf> {
-    let on_path = which::which("ffmpeg").ok();
-    on_path
-        .into_iter()
-        .chain(
-            doctor::PREVIEW_CANDIDATES
-                .iter()
-                .map(std::path::PathBuf::from),
-        )
-        .filter(|p| p.exists())
-        .find(|p| {
-            Command::new(p)
-                .args(["-hide_banner", "-filters"])
-                .output()
-                .map(|o| doctor::has_ass_filter(&String::from_utf8_lossy(&o.stdout)))
-                .unwrap_or(false)
-        })
-}
-
 pub fn print_report(report: &Report) {
     for item in &report.items {
         let mark = match (item.state, item.optional) {
