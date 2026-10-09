@@ -479,7 +479,14 @@ viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnosti
   transitions; the look notes; the template's rules; and checks for "done".
   It refuses to run until TEMPLATE.md has no `TODO:`.
 - **FilmCraft.** A second skill, `viralcraft-filmcraft`, has the agent
-  follow `REBUILD-PROMPT.md` through `filmcraft-cli` (MCP or `exec`): a new
+  follow `REBUILD-PROMPT.md` in FilmCraft. FilmCraft exposes the same
+  commands two ways, and each is used where it fits: the agent prefers
+  FilmCraft's **MCP server** (`filmcraft-cli mcp`, headless or `--bridge`
+  to the running app so the user can watch), which lets it render frames
+  and check its own work; the **CLI** (`filmcraft-cli exec`, `inspect`) is
+  the fallback when no MCP server is connected, and what the automated
+  tests use. If neither is available the skill explains the setup, e.g.
+  `claude mcp add filmcraft -- filmcraft-cli mcp`. The agent builds a new
   project at the source's size and rate, the assets imported, clips placed
   and trimmed to the slots, captions as FilmCraft text in the matching
   style, music and sounds placed, then an export to

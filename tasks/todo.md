@@ -546,7 +546,9 @@ and the real-clip judgement as a worked example.
 ## Task 21: the FilmCraft editor skill
 
 **Description:** `skill/viralcraft-filmcraft/SKILL.md`: follow
-REBUILD-PROMPT.md through `filmcraft-cli` (MCP or `exec`). New sequence at
+REBUILD-PROMPT.md in FilmCraft, preferring its MCP server
+(`filmcraft-cli mcp`, headless or bridged to the open app) and falling back
+to `filmcraft-cli exec`; tests use the CLI. New sequence at
 the source's size and rate, import the assets, place and trim clips per slot
 (`timeline.place`), captions as FilmCraft text with the matching style
 (`graphics.newText`, `graphics.set`), music and sounds placed, export
