@@ -85,3 +85,18 @@ Real clip (our captions burned over the originals with the since-removed
 
 Follow-ups worth doing: estimate size from box width with the chosen
 substitute font, and detect italics from glyph slant.
+
+## FilmCraft import (Phase 3 checkpoint)
+
+FilmCraft 0.4.0 (`filmcraft-cli`, built from the user's checkout into
+/tmp/filmcraft-target) imports the real clip's timeline with no errors,
+links source.cfr.mp4, and places all 11 tracks, every shot, caption,
+music and sound clip at the right time with the judged caption text.
+
+Two fixes came out of it:
+- OTIO has no picture-size field; FilmCraft assumed 1920x1080. The
+  timeline now carries FilmCraft's own sequence settings in
+  metadata.filmcraft (other editors ignore it).
+- FilmCraft imports unknown generators as Black Video, which blacked out
+  the picture under every caption. Placeholder clips are now disabled:
+  visible and labelled, never rendered.

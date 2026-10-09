@@ -461,7 +461,7 @@ line per command.
 ## Checkpoint: Outputs
 - [x] Full pipeline on `cuts-3.mp4` and on the real clip (real clip also judged and finalized: 0 TODO in EDIT-SPEC.md and TEMPLATE.md)
 - [x] OTIO round-trips in Python
-- [ ] OTIO imports into FilmCraft (FilmCraft not built on this machine; user to decide)
+- [x] OTIO imports into FilmCraft 0.4.0: no errors, source linked, 1080x1920, placeholders disabled, renders the real picture (ignored test, FILMCRAFT_CLI)
 - [x] ASS burn-in check: fixture within 0.008 of the frame; real-clip preview shows positions and colours right, font size an estimate (tasks/notes.md)
 - [ ] Review with human before proceeding
 

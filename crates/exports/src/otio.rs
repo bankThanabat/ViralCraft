@@ -123,12 +123,16 @@ fn lay_out(items: &[&Item], total: i64, rate: Fps) -> Vec<Value> {
         if start > at {
             children.push(gap(start - at, rate));
         }
-        children.push(clip(
+        // Placeholders are not media: disabled, they show as labelled clips
+        // but never render (FilmCraft turns unknown generators into black).
+        let mut placeholder = clip(
             &it.name,
             tr(0, end - start, rate),
             generator(it.kind, end - start, rate),
             it.meta.clone(),
-        ));
+        );
+        placeholder["enabled"] = json!(false);
+        children.push(placeholder);
         at = end;
     }
     if total > at {
@@ -153,6 +157,32 @@ fn lane_tracks(mut items: Vec<Item>, total: i64, rate: Fps) -> Vec<Vec<Value>> {
             lay_out(&members, total, rate)
         })
         .collect()
+}
+
+/// FilmCraft's sequence settings, in the shape its own OTIO export writes.
+/// OTIO has no standard field for picture size; FilmCraft reads this and
+/// otherwise assumes 1920x1080. Other editors ignore it.
+fn filmcraft_settings(probe: &Probe) -> Value {
+    let rate = if probe.rate.den == 1 {
+        probe.rate.num.to_string()
+    } else {
+        format!("{:.2}", probe.rate.as_f64())
+    };
+    json!({
+        "width": probe.width,
+        "height": probe.height,
+        "frame_rate": {"num": probe.rate.num, "den": probe.rate.den},
+        "par": [1, 1],
+        "sample_rate": probe.audio.as_ref().map_or(48_000, |a| a.sample_rate),
+        "drop_frame": false,
+        "preset": format!("Custom {}x{} {rate}", probe.width, probe.height),
+        "audio_master": "Stereo",
+        "preview_codec": "ProRes 422",
+        "max_bit_depth": false,
+        "max_render_quality": false,
+        "working_space": "Rec. 709",
+        "color": {"working": "Rec709", "wide_gamut": false, "auto_tone_map": true},
+    })
 }
 
 pub fn write(probe: &Probe, shots: &Shots, audio: &Audio, inspect: &Inspect) -> Value {
@@ -358,14 +388,17 @@ pub fn write_judged(
             "color": null,
             "metadata": {},
         },
-        "metadata": {"viralcraft": {
+        "metadata": {
+            "filmcraft": {"settings": filmcraft_settings(probe)},
+            "viralcraft": {
             "version": 1,
             "rate": probe.rate,
             "frames": total,
             "size": [probe.width, probe.height],
             "tempo": audio.tempo,
             "transcript": audio.transcript,
-        }},
+            },
+        },
     })
 }
 
@@ -524,6 +557,44 @@ mod tests {
         assert_eq!(
             one["metadata"]["viralcraft"]["judgement"]["kind"],
             "caption"
+        );
+    }
+
+    #[test]
+    fn filmcraft_gets_the_real_frame_size_and_rate() {
+        // OTIO has no standard field for picture size; FilmCraft reads its own
+        // sequence settings from metadata.filmcraft and otherwise assumes
+        // 1920x1080, which turned the first real clip landscape.
+        let t = timeline();
+        let settings = &t["metadata"]["filmcraft"]["settings"];
+        assert_eq!(
+            (settings["width"].as_u64(), settings["height"].as_u64()),
+            (Some(1080), Some(1920))
+        );
+        assert_eq!(
+            settings["frame_rate"],
+            serde_json::json!({"num": 30, "den": 1})
+        );
+        assert_eq!(settings["preset"], "Custom 1080x1920 30");
+    }
+
+    #[test]
+    fn placeholder_clips_are_disabled_so_they_never_render() {
+        // FilmCraft imports unknown generators as Black Video; enabled clips
+        // on tracks above the shots blacked out the picture.
+        let t = timeline();
+        let captions = &tracks(&t)[1]["children"];
+        let one = captions
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == "ONE")
+            .unwrap();
+        assert_eq!(one["enabled"], false);
+        assert_eq!(
+            tracks(&t)[0]["children"][0]["enabled"],
+            true,
+            "shots stay enabled"
         );
     }
 

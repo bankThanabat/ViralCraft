@@ -6,6 +6,33 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
   "OTIO_SCHEMA": "Timeline.1",
   "global_start_time": null,
   "metadata": {
+    "filmcraft": {
+      "settings": {
+        "audio_master": "Stereo",
+        "color": {
+          "auto_tone_map": true,
+          "wide_gamut": false,
+          "working": "Rec709"
+        },
+        "drop_frame": false,
+        "frame_rate": {
+          "den": 1,
+          "num": 30
+        },
+        "height": 1920,
+        "max_bit_depth": false,
+        "max_render_quality": false,
+        "par": [
+          1,
+          1
+        ],
+        "preset": "Custom 1080x1920 30",
+        "preview_codec": "ProRes 422",
+        "sample_rate": 48000,
+        "width": 1080,
+        "working_space": "Rec. 709"
+      }
+    },
     "viralcraft": {
       "frames": 180,
       "rate": {
@@ -572,7 +599,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
             "active_media_reference_key": "DEFAULT_MEDIA",
             "color": null,
             "effects": [],
-            "enabled": true,
+            "enabled": false,
             "markers": [],
             "media_references": {
               "DEFAULT_MEDIA": {
@@ -672,7 +699,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
             "active_media_reference_key": "DEFAULT_MEDIA",
             "color": null,
             "effects": [],
-            "enabled": true,
+            "enabled": false,
             "markers": [],
             "media_references": {
               "DEFAULT_MEDIA": {
@@ -772,7 +799,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
             "active_media_reference_key": "DEFAULT_MEDIA",
             "color": null,
             "effects": [],
-            "enabled": true,
+            "enabled": false,
             "markers": [],
             "media_references": {
               "DEFAULT_MEDIA": {
@@ -977,7 +1004,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
             "active_media_reference_key": "DEFAULT_MEDIA",
             "color": null,
             "effects": [],
-            "enabled": true,
+            "enabled": false,
             "markers": [],
             "media_references": {
               "DEFAULT_MEDIA": {
@@ -1079,7 +1106,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
             "active_media_reference_key": "DEFAULT_MEDIA",
             "color": null,
             "effects": [],
-            "enabled": true,
+            "enabled": false,
             "markers": [],
             "media_references": {
               "DEFAULT_MEDIA": {
