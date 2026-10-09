@@ -459,9 +459,10 @@ line per command.
 **Estimated scope:** M
 
 ## Checkpoint: Outputs
-- [ ] Full pipeline on `cuts-3.mp4` and on the real clip
-- [ ] OTIO round-trips in Python and imports into FilmCraft
-- [ ] ASS burn-in check passes
+- [x] Full pipeline on `cuts-3.mp4` and on the real clip (real clip also judged and finalized: 0 TODO in EDIT-SPEC.md and TEMPLATE.md)
+- [x] OTIO round-trips in Python
+- [ ] OTIO imports into FilmCraft (FilmCraft not built on this machine; user to decide)
+- [ ] ASS burn-in check (needs ffmpeg built with libass, e.g. Homebrew `ffmpeg-full`; user to decide)
 - [ ] Review with human before proceeding
 
 ## Phase 4: Skill and docs
