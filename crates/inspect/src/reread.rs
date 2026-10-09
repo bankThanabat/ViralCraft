@@ -10,12 +10,39 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
-use image::RgbImage;
 use model::tools;
 use model::{BoxN, CaptionEvent};
 
 use crate::text::Ocr;
 use crate::InspectError;
+
+/// Frames per ffmpeg pass. One pass for ~450 frames failed to parse.
+const BATCH: usize = 50;
+
+/// The wanted frames split into extraction batches, order kept.
+pub fn batches(frames: &[u64]) -> Vec<Vec<u64>> {
+    frames.chunks(BATCH).map(<[u64]>::to_vec).collect()
+}
+
+/// ffmpeg `select` expression picking exactly these frames.
+pub fn select_expression(batch: &[u64]) -> String {
+    batch
+        .iter()
+        .map(|f| format!("eq(n\\,{f})"))
+        .collect::<Vec<_>>()
+        .join("+")
+}
+
+/// Frame number to its extracted file name, batch by batch.
+pub fn frame_files(batches: &[Vec<u64>]) -> BTreeMap<u64, String> {
+    let mut out = BTreeMap::new();
+    for (b, batch) in batches.iter().enumerate() {
+        for (i, f) in batch.iter().enumerate() {
+            out.insert(*f, format!("b{b:03}_{i:05}.jpg"));
+        }
+    }
+    out
+}
 
 /// Padding around a caption crop, as a fraction of frame width.
 const CROP_PAD: f64 = 0.015;
@@ -96,54 +123,48 @@ pub fn reread(
         fs::remove_dir_all(&dir).map_err(|e| io(&dir, e))?;
     }
     fs::create_dir_all(&dir).map_err(|e| io(&dir, e))?;
-    let select = frames
-        .iter()
-        .map(|f| format!("eq(n\\,{f})"))
-        .collect::<Vec<_>>()
-        .join("+");
-    let pattern = Path::new(FULLRES_DIR).join("%05d.jpg");
-    tools::run_in(
-        run_dir,
-        "ffmpeg",
-        &[
-            "-y",
-            "-v",
-            "error",
-            "-i",
-            source,
-            "-an",
-            "-vf",
-            &format!("select='{select}'"),
-            "-fps_mode",
-            "passthrough",
-            "-q:v",
-            "2",
-            "-start_number",
-            "0",
-            pattern.to_str().unwrap_or_default(),
-        ],
-    )
-    .map_err(|e| InspectError::Ocr(e.to_string()))?;
+    let groups = batches(&frames);
+    for (b, batch) in groups.iter().enumerate() {
+        let pattern = Path::new(FULLRES_DIR).join(format!("b{b:03}_%05d.jpg"));
+        tools::run_in(
+            run_dir,
+            "ffmpeg",
+            &[
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                source,
+                "-an",
+                "-vf",
+                &format!("select='{}'", select_expression(batch)),
+                "-fps_mode",
+                "passthrough",
+                "-q:v",
+                "2",
+                "-start_number",
+                "0",
+                pattern.to_str().unwrap_or_default(),
+            ],
+        )
+        .map_err(|e| InspectError::Ocr(e.to_string()))?;
+    }
+    let files = frame_files(&groups);
 
-    // Output images are numbered in frame order.
-    let index: BTreeMap<u64, usize> = frames.iter().enumerate().map(|(i, &f)| (f, i)).collect();
-    let mut cache: BTreeMap<u64, RgbImage> = BTreeMap::new();
+    // Frames are loaded one at a time: holding every full-size frame at
+    // once would take gigabytes on a long clip with many captions.
     for (caption, samples) in captions.iter_mut().zip(&wanted) {
         let mut readings = Vec::new();
         for f in samples {
-            if !cache.contains_key(f) {
-                let path = dir.join(format!("{:05}.jpg", index[f]));
-                let img = image::open(&path)
-                    .map_err(|source| InspectError::Image { path, source })?
-                    .into_rgb8();
-                cache.insert(*f, img);
-            }
-            let img = &cache[f];
+            let path = dir.join(&files[f]);
+            let img = image::open(&path)
+                .map_err(|source| InspectError::Image { path, source })?
+                .into_rgb8();
             let (x, y, w, h) = crop_rect(&caption.bounds, img.width(), img.height(), CROP_PAD);
             if w == 0 || h == 0 {
                 continue;
             }
-            let crop = image::imageops::crop_imm(img, x, y, w, h).to_image();
+            let crop = image::imageops::crop_imm(&img, x, y, w, h).to_image();
             let mut lines = ocr.read_lines(&crop).map_err(InspectError::Ocr)?;
             lines.sort_by(|a, b| a.0.cy.total_cmp(&b.0.cy));
             readings.push(
@@ -201,6 +222,28 @@ mod tests {
         let r = |s: &str| s.to_string();
         assert_eq!(vote(&[r(""), r("like"), r("")]), "like");
         assert_eq!(vote(&[]), "");
+    }
+
+    #[test]
+    fn many_frames_are_extracted_in_batches_ffmpeg_can_parse() {
+        // A 124 s clip with ~150 captions asked for ~450 frames in one
+        // select expression, which ffmpeg failed to parse.
+        let frames: Vec<u64> = (0..450).map(|i| i * 8 + 17).collect();
+        let batches = batches(&frames);
+        assert_eq!(batches.len(), 9);
+        assert!(batches.iter().all(|b| select_expression(b).len() < 1000));
+        let flat: Vec<u64> = batches.iter().flatten().copied().collect();
+        assert_eq!(flat, frames, "every frame once, in order");
+    }
+
+    #[test]
+    fn each_frame_maps_to_its_batch_file() {
+        let frames: Vec<u64> = (0..120).collect();
+        let files = frame_files(&batches(&frames));
+        assert_eq!(files[&0], "b000_00000.jpg");
+        assert_eq!(files[&49], "b000_00049.jpg");
+        assert_eq!(files[&50], "b001_00000.jpg");
+        assert_eq!(files[&119], "b002_00019.jpg");
     }
 
     #[test]
