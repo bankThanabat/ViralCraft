@@ -18,6 +18,28 @@ pub struct RawToken {
     pub special: bool,
 }
 
+/// Mean token probability under which a whisper segment is invented, not
+/// heard. Measured with the small and tiny.en models: invented text on
+/// silent kitchen clips 0.00 to 0.35; real speech 0.46 ("Mmm.") to 0.94.
+/// Whisper's own no-speech probability was 0.00 on every invented segment.
+const MIN_SEGMENT_P: f32 = 0.4;
+/// A segment text this many times in one clip is whisper looping over
+/// silence ("area in arena" once per 30 s window), not speech.
+const LOOP_REPEATS: usize = 3;
+
+/// Which segments to keep, given each segment's text and mean token
+/// probability.
+pub fn heard(segments: &[(String, f32)]) -> Vec<bool> {
+    let key = |t: &str| t.trim().to_lowercase();
+    segments
+        .iter()
+        .map(|(text, p)| {
+            let repeats = segments.iter().filter(|(t, _)| key(t) == key(text)).count();
+            *p >= MIN_SEGMENT_P && repeats < LOOP_REPEATS
+        })
+        .collect()
+}
+
 /// Confidence given to a word whose start came from coarse token stamps.
 const FALLBACK_CONFIDENCE: f32 = 0.3;
 
@@ -64,8 +86,14 @@ pub fn tokens_to_words(tokens: &[RawToken], rate: Fps, offset: RationalTime) -> 
     let offset_s = offset.to_seconds();
     let at = |cs: i64| RationalTime::from_seconds(cs as f64 / 100.0 + offset_s, rate);
     let mut previous_end = i64::MIN;
+    // A "word" with no letter or digit (a lone "." or "♪") is not speech.
     built
         .into_iter()
+        .filter(|w| {
+            String::from_utf8_lossy(&w.bytes)
+                .chars()
+                .any(char::is_alphanumeric)
+        })
         .map(|w| {
             let end_cs = w.dtw_end.unwrap_or(w.t1);
             let start_cs = w.t0.max(previous_end);
@@ -232,6 +260,52 @@ mod tests {
         let words = tokens_to_words(&[a, b], FPS30, zero());
         assert_eq!(words.len(), 1);
         assert_eq!(words[0].text, "มัทฉะ");
+    }
+
+    #[test]
+    fn invented_segments_are_dropped_and_speech_kept() {
+        let seg = |t: &str, p: f32| (t.to_string(), p);
+        // Measured on silent clips and on real speech.
+        let got = heard(&[
+            seg("Mmm.", 0.46),
+            seg("I wish I didn't have to go to work.", 0.85),
+            seg("Baltic", 0.35),
+            seg("7g here alternately", 0.13),
+        ]);
+        assert_eq!(got, [true, true, false, false]);
+    }
+
+    #[test]
+    fn punctuation_alone_is_not_a_word() {
+        // Whisper heard a confident "." in a silent kitchen clip.
+        let words = tokens_to_words(
+            &[
+                tok(" Hi", 0, 10, 8),
+                tok(" .", 50, 60, 58),
+                tok(" ♪", 70, 80, 78),
+            ],
+            FPS30,
+            zero(),
+        );
+        let texts: Vec<&str> = words.iter().map(|w| w.text.as_str()).collect();
+        assert_eq!(texts, ["Hi"]);
+    }
+
+    #[test]
+    fn a_phrase_looping_over_silence_is_dropped() {
+        let seg = |t: &str, p: f32| (t.to_string(), p);
+        let got = heard(&[
+            seg("area in arena", 0.11),
+            seg("Okay, here it goes.", 0.81),
+            seg("area in arena", 1.0),
+            seg(" area in arena", 0.91),
+            seg("okay, here it goes.", 0.8),
+        ]);
+        assert_eq!(
+            got,
+            [false, true, false, false, true],
+            "two repeats are fine"
+        );
     }
 
     #[test]

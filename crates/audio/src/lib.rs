@@ -232,14 +232,17 @@ fn whisper(
     params.set_print_timestamps(false);
     state.full(params, samples)?;
 
-    let mut tokens = Vec::new();
+    // Whisper invents text over silence and noise; such segments are
+    // dropped (see `words::heard`).
+    let mut segments: Vec<(String, f32, Vec<words::RawToken>)> = Vec::new();
     for segment in state.as_iter() {
+        let mut seg_tokens = Vec::new();
         for i in 0..segment.n_tokens() {
             let Some(token) = segment.get_token(i) else {
                 continue;
             };
             let data = token.token_data();
-            tokens.push(words::RawToken {
+            seg_tokens.push(words::RawToken {
                 bytes: token.to_bytes()?.to_vec(),
                 t0: data.t0,
                 t1: data.t1,
@@ -248,7 +251,22 @@ fn whisper(
                 special: token.token_id() >= eot,
             });
         }
+        let mean_p = seg_tokens.iter().map(|t| t.p).sum::<f32>() / seg_tokens.len().max(1) as f32;
+        let text = segment.to_str_lossy()?.into_owned();
+        segments.push((text, mean_p, seg_tokens));
     }
+    let keep = words::heard(
+        &segments
+            .iter()
+            .map(|(t, p, _)| (t.clone(), *p))
+            .collect::<Vec<_>>(),
+    );
+    let tokens: Vec<words::RawToken> = segments
+        .into_iter()
+        .zip(keep)
+        .filter(|(_, k)| *k)
+        .flat_map(|((_, _, t), _)| t)
+        .collect();
     let language = if choice.multilingual {
         whisper_rs::get_lang_str(state.full_lang_id_from_state())
             .unwrap_or("unknown")
