@@ -436,7 +436,7 @@ section is a `TODO:` for the agent.
 
 **Estimated scope:** S
 
-## Task 17: analyze, finalize, clean end to end
+## Task 17: analyze, finalize, clean end to end ✅ done
 
 **Description:** Wire `viralcraft analyze` (doctor preflight, ingest, shots,
 audio, inspect, editspec, exports without judgement), `viralcraft finalize`
@@ -444,13 +444,13 @@ audio, inspect, editspec, exports without judgement), `viralcraft finalize`
 line per command.
 
 **Acceptance criteria:**
-- [ ] Ignored end-to-end test on `cuts-3.mp4`: every file in the run directory exists, `EDIT-SPEC.md` has no empty field, summary line lists every path
-- [ ] `analyze` with a missing model exits 1 with the doctor report and creates no run directory
-- [ ] `clean` removes `frames/` and `source.cfr.mp4` and nothing else
+- [x] Ignored end-to-end test on `cuts-3.mp4`: every file in the run directory exists, `EDIT-SPEC.md` has no empty field, summary line lists every path
+- [x] `analyze` with a missing model exits 1 with the doctor report and creates no run directory
+- [x] `clean` removes `frames/` and `source.cfr.mp4` and nothing else
 
 **Verification:**
-- [ ] Tests pass: `cargo test --workspace -- --ignored`
-- [ ] Manual check: full run on the real clip from the Phase 2 checkpoint
+- [x] Tests pass: `cargo test --workspace -- --ignored`
+- [x] Manual check: full run on the real clip from the Phase 2 checkpoint (2 min 5 s for 56 s; inspect 115 s)
 
 **Dependencies:** 16, 13
 

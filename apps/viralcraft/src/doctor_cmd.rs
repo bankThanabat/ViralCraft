@@ -5,6 +5,17 @@ use anyhow::{bail, Context};
 use doctor::{Env, Item, Os, Report, State, MODELS};
 use serde_json::{json, Value};
 
+/// The tools-and-models check on this machine, without printing.
+pub fn check() -> Report {
+    let models_dir = doctor::default_models_dir();
+    let env = Env {
+        os: Os::current(),
+        models_dir: &models_dir,
+        find_tool: Box::new(|name| which::which(name).ok()),
+    };
+    doctor::check(&env, &MODELS)
+}
+
 pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
     let models_dir = doctor::default_models_dir();
     let env = Env {
@@ -33,7 +44,7 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
     Ok((summary, report.ok))
 }
 
-fn print_report(report: &Report) {
+pub fn print_report(report: &Report) {
     for item in &report.items {
         let mark = match (item.state, item.optional) {
             (State::Present, _) => "ok     ",

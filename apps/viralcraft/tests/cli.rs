@@ -182,3 +182,55 @@ fn finalize_keeps_a_template_the_agent_has_finished() {
     let kept = std::fs::read_to_string(dir.path().join("TEMPLATE.md")).unwrap();
     assert_eq!(kept, "# Template: finished by the agent\n");
 }
+
+#[test]
+fn analyze_stops_before_touching_the_video_when_a_model_is_missing() {
+    let dir = tempfile::tempdir().unwrap();
+    let out_dir = dir.path().join("out");
+    let video = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/cuts-3.mp4");
+
+    let out = viralcraft(
+        &[
+            "analyze",
+            video.to_str().unwrap(),
+            "--out",
+            out_dir.to_str().unwrap(),
+        ],
+        dir.path(),
+    );
+
+    assert_eq!(out.status.code(), Some(1));
+    let summary = single_json_line(&out.stdout);
+    assert_eq!(summary["command"], "analyze");
+    assert!(
+        summary["error"].as_str().unwrap().contains("doctor"),
+        "{summary}"
+    );
+    assert!(
+        !out_dir.exists(),
+        "no run directory before the tools check passes"
+    );
+}
+
+#[test]
+fn clean_removes_frames_and_the_normalized_video_only() {
+    let dir = tempfile::tempdir().unwrap();
+    let run = dir.path();
+    std::fs::create_dir(run.join("frames")).unwrap();
+    std::fs::write(run.join("frames").join("f00000.jpg"), b"x").unwrap();
+    std::fs::write(run.join("source.cfr.mp4"), b"x").unwrap();
+    for keep in ["probe.json", "EDIT-SPEC.md", "timeline.otio"] {
+        std::fs::write(run.join(keep), b"x").unwrap();
+    }
+
+    let out = viralcraft(&["clean", run.to_str().unwrap()], run);
+
+    assert!(out.status.success());
+    assert!(!run.join("frames").exists());
+    assert!(!run.join("source.cfr.mp4").exists());
+    for keep in ["probe.json", "EDIT-SPEC.md", "timeline.otio"] {
+        assert!(run.join(keep).exists(), "{keep} must stay");
+    }
+    let summary = single_json_line(&out.stdout);
+    assert_eq!(summary["removed"].as_array().unwrap().len(), 2);
+}

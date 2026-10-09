@@ -6,6 +6,7 @@
 
 mod doctor_cmd;
 mod finalize;
+mod pipeline;
 mod prompt;
 
 use std::path::PathBuf;
@@ -23,6 +24,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Run every measuring stage on a video and write the draft edit spec,
+    /// captions and timeline.
+    Analyze {
+        /// The video. Defaults to the only video in --inbox; asks otherwise.
+        file: Option<PathBuf>,
+        #[arg(long, default_value = "inbox")]
+        inbox: PathBuf,
+        #[arg(long, default_value = "out")]
+        out: PathBuf,
+        #[arg(long, default_value = model::probe::DEFAULT_SAFE_ZONE)]
+        safe_zone: String,
+        /// scdet score (0..100) a hard cut must reach.
+        #[arg(long, default_value_t = shots::DEFAULT_THRESHOLD)]
+        threshold: f64,
+    },
+    /// Delete frames/ and source.cfr.mp4 from a finished run.
+    Clean { run_dir: PathBuf },
     /// Check that the tools and model files ViralCraft needs are present.
     Doctor {
         /// Offer to run each missing item's install command, asking first.
@@ -63,6 +81,8 @@ enum Command {
 impl Command {
     fn name(&self) -> &'static str {
         match self {
+            Command::Analyze { .. } => "analyze",
+            Command::Clean { .. } => "clean",
             Command::Doctor { .. } => "doctor",
             Command::Ingest { .. } => "ingest",
             Command::Shots { .. } => "shots",
@@ -97,6 +117,20 @@ fn main() -> ExitCode {
 
 fn run(command: Command) -> anyhow::Result<(Value, bool)> {
     match command {
+        Command::Analyze {
+            file,
+            inbox,
+            out,
+            safe_zone,
+            threshold,
+        } => pipeline::analyze(pipeline::AnalyzeArgs {
+            file,
+            inbox,
+            out,
+            safe_zone,
+            threshold,
+        }),
+        Command::Clean { run_dir } => pipeline::clean(&run_dir),
         Command::Doctor { install } => doctor_cmd::run(install),
         Command::Ingest {
             file,
