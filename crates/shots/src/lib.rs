@@ -92,7 +92,21 @@ pub fn run_with_threshold(run_dir: &Path, threshold: f64) -> Result<Shots, Shots
 
     let stats_path = run_dir.join(STATS);
     let text = fs::read_to_string(&stats_path).map_err(|source| io(&stats_path, source))?;
-    let shots = detect::detect(&detect::parse_metadata(&text)?, probe.rate, threshold);
+    let shots = detect::detect(
+        &detect::parse_metadata(&text)?,
+        probe.rate,
+        threshold,
+        |before, after| {
+            let thumbs: Option<Vec<Vec<f32>>> = (before..=after)
+                .map(|n| thumbnail(&run_dir.join(frame_path(n))))
+                .collect();
+            // A frame that will not load leaves the run as a dissolve.
+            match thumbs {
+                Some(t) => detect::dissolve_progress(&t) >= MIN_DISSOLVE_PROGRESS,
+                None => true,
+            }
+        },
+    );
     // The raw score dump is fully represented in shots.json.
     let _ = fs::remove_file(&stats_path);
 
@@ -100,6 +114,19 @@ pub fn run_with_threshold(run_dir: &Path, threshold: f64) -> Result<Shots, Shots
     let json = serde_json::to_string_pretty(&shots).expect("Shots always serializes");
     fs::write(&out, json).map_err(|source| io(&out, source))?;
     Ok(shots)
+}
+
+/// Progress a run of medium scores must make from the scene before it to
+/// the scene after to count as a dissolve (see `detect::dissolve_progress`).
+/// Measured: a real 6-frame fade 0.57 to 0.88 depending on the window;
+/// whisking in one take 0.35 at most.
+const MIN_DISSOLVE_PROGRESS: f64 = 0.5;
+
+/// A frame as an 18x32 thumbnail: the layout of the picture, not its detail.
+fn thumbnail(path: &Path) -> Option<Vec<f32>> {
+    let img = image::open(path).ok()?.into_rgb8();
+    let small = image::imageops::resize(&img, 18, 32, image::imageops::FilterType::Triangle);
+    Some(small.into_raw().into_iter().map(f32::from).collect())
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, ShotsError> {

@@ -708,12 +708,27 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
 1. **Beat detection quality** on compressed TikTok audio with speech over
    music is unknown. The fixture uses a clean click; a real-video check is
    part of the blind-rebuild run.
-2. **Per-frame text detection cost.** Running ocrs detection on every frame
-   is unmeasured; the verification run did detection plus recognition on a
-   full-res frame in 50 ms, so detection alone at half res should be well
-   under that, giving under 60 s for a 60 s clip. Measure in the first
-   `inspect` slice. If it is too slow, detect every 3rd frame and refine
-   around changes.
+2. **Per-frame text detection cost.** Answered: 24 to 32 ms per frame on
+   Apple Silicon (release build), so a 124 s clip's inspect takes about
+   4 minutes in all, including the full-size re-read.
 3. **Overlay detection quality.** Frame differencing against the camera
    transform is untested on real clips. If it is noisy, v1 reports overlays
    only where the agent marks them.
+4. **Dissolves are mostly missed.** scdet scores the change in frame
+   difference, so a steady cross-fade scores near 0 after its first frame
+   (a 6-frame fade between two Thai-clip scenes scored under 1). Runs of
+   medium scores are now kept only when the pictures blend from one scene
+   to the other, which removed 46 false dissolves from a whisking take,
+   but true dissolves need a detector of their own (e.g. per-frame
+   difference that stays raised while the picture moves towards a new
+   scene).
+5. **Fill and outline swap on thin text.** On the Thai clip several white
+   captions with a dark outline or shadow were reported with a dark fill
+   and a white outline, and some got a box they do not have. The agent can
+   see it; the measurement should not need it to.
+6. **Type-on and write-on titles.** They are measured as no animation and
+   split into pieces (the agent joins them with `same_as`). An animation
+   kind for reveals, with its frames, would let an editor rebuild them.
+7. **Sparkle and emoji overlays.** On the Thai clip the sparkles around
+   the title were missed and all 24 detected overlays were scene objects
+   (hands, kettle, ice). Overlay detection needs work on real clips.

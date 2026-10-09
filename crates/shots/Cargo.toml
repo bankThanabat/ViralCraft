@@ -7,6 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 ingest = { path = "../ingest" }
 model.workspace = true
 serde.workspace = true

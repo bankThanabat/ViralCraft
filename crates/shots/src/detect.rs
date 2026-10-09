@@ -67,7 +67,46 @@ pub fn parse_metadata(text: &str) -> Result<Vec<FrameStat>, ParseError> {
     Ok(out)
 }
 
-pub fn detect(stats: &[FrameStat], rate: Fps, threshold: f64) -> Shots {
+/// How far a dissolve's middle frames travel from the frame before it
+/// (`frames[0]`) to the frame after it (last), 0..1: the last middle
+/// frame's progress minus the first's. Each frame is a small thumbnail as
+/// flat pixel values. A real cross-fade moves steadily from one scene to
+/// the other (0.14 -> 0.83 on a 6-frame fade of the Thai clip's scenes);
+/// fast motion inside one shot stays half-way between two similar frames.
+pub fn dissolve_progress(frames: &[Vec<f32>]) -> f64 {
+    if frames.len() < 3 {
+        return 0.0;
+    }
+    let dist = |a: &[f32], b: &[f32]| {
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| f64::from((x - y).abs()))
+            .sum::<f64>()
+    };
+    let (first, last) = (&frames[0], &frames[frames.len() - 1]);
+    let progress: Vec<f64> = frames[1..frames.len() - 1]
+        .iter()
+        .map(|f| {
+            let (from, to) = (dist(f, first), dist(f, last));
+            if from + to == 0.0 {
+                0.5
+            } else {
+                from / (from + to)
+            }
+        })
+        .collect();
+    progress[progress.len() - 1] - progress[0]
+}
+
+/// `is_dissolve(before, after)` checks the pictures around a run of
+/// medium scores; runs it rejects are motion inside a shot, not a
+/// transition.
+pub fn detect(
+    stats: &[FrameStat],
+    rate: Fps,
+    threshold: f64,
+    mut is_dissolve: impl FnMut(u64, u64) -> bool,
+) -> Shots {
     let total = stats.len();
     let mut boundaries: Vec<u64> = Vec::new();
     let mut transitions: Vec<Transition> = Vec::new();
@@ -100,7 +139,10 @@ pub fn detect(stats: &[FrameStat], rate: Fps, threshold: f64) -> Shots {
             (false, Some(start)) => {
                 let len = n - start;
                 let sum: f64 = stats[start..n].iter().map(|s| s.score).sum();
-                if len >= DISSOLVE_MIN_FRAMES && sum >= threshold {
+                if len >= DISSOLVE_MIN_FRAMES
+                    && sum >= threshold
+                    && is_dissolve(start.saturating_sub(1) as u64, n as u64)
+                {
                     transitions.push(Transition {
                         kind: TransitionKind::Dissolve,
                         range: TimeRange::from_frames(start as i64, len as i64, rate),
@@ -223,7 +265,7 @@ mod tests {
     #[test]
     fn scores_over_the_threshold_split_shots() {
         let s = stats(180, &[(60, 44.5, 160.0), (120, 30.0, 90.0)]);
-        let shots = detect(&s, FPS30, 10.0);
+        let shots = detect(&s, FPS30, 10.0, |_, _| true);
 
         let ranges: Vec<(i64, i64)> = shots
             .segments
@@ -241,7 +283,7 @@ mod tests {
     #[test]
     fn every_candidate_keeps_its_score_even_below_threshold() {
         let s = stats(100, &[(40, 6.0, 40.0), (70, 25.0, 120.0)]);
-        let shots = detect(&s, FPS30, 10.0);
+        let shots = detect(&s, FPS30, 10.0, |_, _| true);
         let kept: Vec<(u64, bool)> = shots
             .candidates
             .iter()
@@ -256,7 +298,7 @@ mod tests {
         let run: Vec<(u64, f64, f64)> = (100..108)
             .map(|f| (f, 3.0, 40.0 + (f - 100) as f64 * 10.0))
             .collect();
-        let shots = detect(&stats(200, &run), FPS30, 10.0);
+        let shots = detect(&stats(200, &run), FPS30, 10.0, |_, _| true);
 
         assert_eq!(shots.segments.len(), 2);
         assert_eq!(
@@ -273,7 +315,7 @@ mod tests {
     fn a_one_frame_luma_spike_is_a_flash_not_two_cuts() {
         // Frame 50 flashes white; the change in and the change out both score high.
         let s = stats(100, &[(50, 60.0, 235.0), (51, 60.0, 40.0)]);
-        let shots = detect(&s, FPS30, 10.0);
+        let shots = detect(&s, FPS30, 10.0, |_, _| true);
 
         assert_eq!(shots.segments.len(), 1, "a flash does not start a new shot");
         assert_eq!(shots.transitions.len(), 1);
@@ -285,10 +327,51 @@ mod tests {
     fn a_flash_into_a_new_scene_is_a_cut_with_a_flash() {
         // Frame 50 is white, frame 51 starts a different scene (luma 120).
         let s = stats(100, &[(50, 60.0, 235.0), (51, 60.0, 120.0)]);
-        let shots = detect(&s, FPS30, 10.0);
+        let shots = detect(&s, FPS30, 10.0, |_, _| true);
 
         assert_eq!(shots.segments.len(), 2);
         assert_eq!(shots.segments[1].range.start.value, 50);
         assert_eq!(shots.transitions[0].kind, TransitionKind::Flash);
+    }
+
+    #[test]
+    fn a_run_whose_pictures_do_not_blend_is_not_a_dissolve() {
+        // Whisking for 30 s gave 46 runs of medium scores in one take.
+        let run: Vec<(u64, f64, f64)> = (100..106).map(|f| (f, 3.0, 40.0)).collect();
+        let shots = detect(&stats(200, &run), FPS30, 10.0, |_, _| false);
+        assert!(shots.transitions.is_empty());
+        assert_eq!(shots.segments.len(), 1);
+        let mut asked = None;
+        detect(&stats(200, &run), FPS30, 10.0, |a, b| {
+            asked = Some((a, b));
+            true
+        });
+        assert_eq!(asked, Some((99, 106)), "the frames just outside the run");
+    }
+
+    #[test]
+    fn a_cross_fade_progresses_and_motion_does_not() {
+        let blend = |t: f32| vec![100.0 * (1.0 - t) + 20.0 * t, 30.0 * (1.0 - t) + 200.0 * t];
+        let fade: Vec<Vec<f32>> = (0..8).map(|k| blend(k as f32 / 7.0)).collect();
+        assert!(
+            dissolve_progress(&fade) > 0.6,
+            "{}",
+            dissolve_progress(&fade)
+        );
+
+        // The same scene before and after, a hand moving in between.
+        let scene = vec![100.0, 30.0];
+        let wiggle: Vec<Vec<f32>> = vec![
+            scene.clone(),
+            vec![130.0, 30.0],
+            vec![100.0, 60.0],
+            vec![70.0, 30.0],
+            vec![101.0, 31.0],
+        ];
+        assert!(
+            dissolve_progress(&wiggle).abs() < 0.3,
+            "{}",
+            dissolve_progress(&wiggle)
+        );
     }
 }
