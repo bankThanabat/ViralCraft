@@ -82,6 +82,25 @@ enum Command {
         /// The user's caption lines, one per line, used in order.
         #[arg(long)]
         script: Option<PathBuf>,
+        /// Rebuild without captions.
+        #[arg(long)]
+        no_captions: bool,
+    },
+    /// Optional rebuild step for clips without speech: an AI voice reads
+    /// the approved script, one line per caption, into rebuild/voiceover/.
+    Voiceover {
+        run_dir: PathBuf,
+        /// The approved lines, one per caption, in order.
+        #[arg(long)]
+        script: PathBuf,
+        /// say (free, the system's own voices), openai or elevenlabs (your
+        /// own key in OPENAI_API_KEY or ELEVENLABS_API_KEY).
+        #[arg(long, default_value = "say")]
+        engine: String,
+        #[arg(long)]
+        voice: Option<String>,
+        #[arg(long)]
+        model: Option<String>,
     },
     /// Write EDIT-SPEC.md from the measurements in a run directory.
     Editspec { run_dir: PathBuf },
@@ -100,6 +119,7 @@ impl Command {
             Command::Analyze { .. } => "analyze",
             Command::Assets { .. } => "assets",
             Command::Prompt { .. } => "prompt",
+            Command::Voiceover { .. } => "voiceover",
             Command::Clean { .. } => "clean",
             Command::Doctor { .. } => "doctor",
             Command::Ingest { .. } => "ingest",
@@ -175,9 +195,45 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                 true,
             ))
         }
-        Command::Prompt { run_dir, script } => {
-            let path = rebuild::prompt::run(&run_dir, script.as_deref())?;
+        Command::Prompt {
+            run_dir,
+            script,
+            no_captions,
+        } => {
+            let path = rebuild::prompt::run(&run_dir, script.as_deref(), !no_captions)?;
             Ok((json!({ "ok": true, "files": [path] }), true))
+        }
+        Command::Voiceover {
+            run_dir,
+            script,
+            engine,
+            voice,
+            model,
+        } => {
+            let opts = rebuild::voiceover::VoiceOptions {
+                engine: rebuild::voiceover::Engine::parse(&engine)?,
+                voice,
+                model,
+            };
+            let v =
+                rebuild::voiceover::run(&run_dir, &script, &opts, |var| std::env::var(var).ok())?;
+            let too_long: Vec<&str> = v
+                .lines
+                .iter()
+                .filter(|l| !l.fits)
+                .map(|l| l.caption.as_str())
+                .collect();
+            Ok((
+                json!({
+                    "ok": true,
+                    "engine": v.engine,
+                    "voice": v.voice,
+                    "lines": v.lines.len(),
+                    "too_long": too_long,
+                    "files": [run_dir.join(rebuild::REBUILD_DIR).join(rebuild::voiceover::VOICEOVER_FILE)],
+                }),
+                true,
+            ))
         }
         Command::Clean { run_dir } => pipeline::clean(&run_dir),
         Command::Doctor { install } => doctor_cmd::run(install),

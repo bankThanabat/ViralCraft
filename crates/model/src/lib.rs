@@ -20,6 +20,6 @@ pub use inspect::{
 };
 pub use judgement::{Judgement, Needs};
 pub use probe::{AudioInfo, Probe, SafeZone};
-pub use rebuild::{Asset, Assets};
+pub use rebuild::{Asset, Assets, VoiceLine, Voiceover};
 pub use shots::{Candidate, Segment, Shots, Transition, TransitionKind};
 pub use time::{Fps, RationalTime, TimeError, TimeRange};

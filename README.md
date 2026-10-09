@@ -50,7 +50,10 @@ viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
                                         # merge into EDIT-SPEC.md, write OTIO
                                         # metadata, captions.ass/.vtt, TEMPLATE.md
 viralcraft assets <RUN_DIR> [--assets DIR]   # optional rebuild: read the user's clips
-viralcraft prompt <RUN_DIR> [--script FILE]  # optional rebuild: REBUILD-PROMPT.md
+viralcraft prompt <RUN_DIR> [--script FILE] [--no-captions]
+                                        # optional rebuild: REBUILD-PROMPT.md
+viralcraft voiceover <RUN_DIR> --script FILE [--engine say|openai|elevenlabs] [--voice V] [--model M]
+                                        # optional rebuild: AI voice per caption
 viralcraft clean <RUN_DIR>              # delete frames/ and source.cfr.mp4
 viralcraft ingest [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
 viralcraft shots <RUN_DIR> [--threshold N]   # run one stage on an existing run dir;
@@ -82,6 +85,12 @@ Put your clips in `./assets/`. They are only read, never changed.
    `rebuild/REBUILD-PROMPT.md`: steps any editor agent can follow. Caption
    text comes from your script (one line per caption), else from the speech
    in your clips, else the agent drafts lines for you to approve.
+   If your clips have no talking and you have no script, you choose: an
+   AI voiceover (the agent writes the lines, you approve them, and
+   `viralcraft voiceover` reads them aloud with the Mac's own voices for
+   free, or with OpenAI or ElevenLabs using your own key in
+   `OPENAI_API_KEY` / `ELEVENLABS_API_KEY`), or no captions
+   (`--no-captions`).
 3. With FilmCraft, the `viralcraft-filmcraft` skill builds it: clips cut to
    the slots, captions as styled editable text, music and sounds placed,
    exported to `rebuild/rebuild.mp4`. Connect FilmCraft's MCP server for

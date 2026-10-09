@@ -86,7 +86,10 @@ viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
                                         # merge into EDIT-SPEC.md, write OTIO
                                         # metadata, captions.ass/.vtt, TEMPLATE.md
 viralcraft assets <RUN_DIR> [--assets DIR]   # optional rebuild: read the user's clips
-viralcraft prompt <RUN_DIR> [--script FILE]  # optional rebuild: REBUILD-PROMPT.md
+viralcraft prompt <RUN_DIR> [--script FILE] [--no-captions]
+                                        # optional rebuild: REBUILD-PROMPT.md
+viralcraft voiceover <RUN_DIR> --script FILE [--engine say|openai|elevenlabs] [--voice V] [--model M]
+                                        # optional rebuild: AI voice per caption
 viralcraft clean <RUN_DIR>              # delete frames/ and source.cfr.mp4
 viralcraft ingest [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
 viralcraft shots <RUN_DIR> [--threshold N]   # run one stage on an existing run dir;
@@ -499,6 +502,19 @@ viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnosti
   `<RUN_DIR>/rebuild/rebuild.mp4` and the project to
   `<RUN_DIR>/rebuild/rebuild.fcproj`. The skill checks for `filmcraft-cli`
   and tells the user how to get it if missing; `doctor` does not.
+- **No speech to caption from.** With no script and no speech in any
+  clip, the user chooses: an AI voiceover, or no captions
+  (`prompt --no-captions`). For a voiceover the agent drafts one line per
+  caption, the user approves it, and `viralcraft voiceover` speaks each
+  line into `rebuild/voiceover/line-NN.wav` with the engine the user picks:
+  `say` (the system's own voices, free, offline; Kanya for Thai) or a cloud
+  voice with the user's own key (`openai`: gpt-4o-mini-tts, voice marin;
+  `elevenlabs`: eleven_v3, which has Thai). Keys come from
+  `OPENAI_API_KEY` / `ELEVENLABS_API_KEY` and reach curl on stdin, never
+  its command line. `voiceover.json` records each line's caption, start
+  frame, length and whether it ends before the next caption; the prompt
+  places the lines and uses their text as the captions, and refuses a
+  voiceover made from a different script.
 - **More editors later.** Each editor is its own skill reading the same
   prompt; nothing in the prompt is FilmCraft-specific.
 
@@ -603,7 +619,9 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
 - Download videos from a URL. v1 is file input only.
 - Modify the user's assets. The optional rebuild step only reads them and
   writes new files under `<RUN_DIR>/rebuild/`.
-- Call a hosted model from the CLI. Judgement stays in the agent.
+- Call a hosted model from the CLI. Judgement stays in the agent. The one
+  exception is the optional voiceover, and only when the user picks a cloud
+  voice and supplies their own key (ADR-0006).
 - Commit `inbox/`, `out/`, model weights or any user video.
 - Delete or skip a failing test to get to green.
 

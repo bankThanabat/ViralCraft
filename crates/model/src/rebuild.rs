@@ -40,3 +40,32 @@ pub struct Asset {
     /// A strip of four frames across the clip, relative to the run directory.
     pub thumbnail: String,
 }
+
+/// `rebuild/voiceover.json`: an AI voice reading the user's approved
+/// script, one audio file per caption.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Voiceover {
+    pub version: u32,
+    /// `say` (the system's own voices), `openai` or `elevenlabs`.
+    pub engine: String,
+    pub voice: String,
+    /// The provider's model; empty for `say`.
+    pub model: String,
+    pub lines: Vec<VoiceLine>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct VoiceLine {
+    /// The caption this line is spoken under.
+    pub caption: String,
+    pub text: String,
+    /// Relative to the run directory.
+    pub file: String,
+    /// Frame the line starts at: its caption's start.
+    pub start: i64,
+    pub seconds: f64,
+    /// Frames until the next caption starts (or the video ends).
+    pub room: i64,
+    /// Whether the line ends before the next caption starts.
+    pub fits: bool,
+}

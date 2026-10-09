@@ -119,6 +119,21 @@ Place music and effect clips sound-only on audio tracks 2 and 3:
 
 Change levels with `clip.audioGain`. Check its params with `describe`.
 
+A voiceover is a list of WAV files, one per caption, in
+`rebuild/voiceover/`. Import them with the clips. Place each one on A3 at
+its frame:
+
+```json
+{"id":"timeline.place","params":{"item":21,"track":"A3","frame":219}}
+```
+
+Leave out `duration` so the whole line plays. Lower the clips' own sound
+under it:
+
+```json
+{"id":"clip.audioGain","params":{"clips":[12,14],"mode":"set","db":-18}}
+```
+
 ## 6. Export
 
 Save, then export the whole sequence:

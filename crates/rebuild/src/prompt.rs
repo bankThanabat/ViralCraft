@@ -22,6 +22,8 @@ pub enum PromptError {
     TemplateTodo(PathBuf),
     #[error("{0} is missing; run `viralcraft assets` first")]
     NoAssets(PathBuf),
+    #[error("{0} was made from a different script; run `viralcraft voiceover` again")]
+    VoiceoverMismatch(PathBuf),
     #[error("{path}")]
     Io {
         path: PathBuf,
@@ -51,6 +53,10 @@ pub struct PromptInputs<'a> {
     pub template: &'a str,
     pub assets: &'a Assets,
     pub script: Option<&'a [String]>,
+    /// An AI voice reading the script, made by `viralcraft voiceover`.
+    pub voiceover: Option<&'a model::Voiceover>,
+    /// False when the user chose a rebuild without captions.
+    pub captions: bool,
 }
 
 /// Where caption text comes from, in order of preference.
@@ -58,6 +64,19 @@ enum TextSource<'a> {
     Script(&'a [String]),
     Transcripts,
     Draft,
+    /// The user chose no captions.
+    Off,
+}
+
+/// The captions a rebuild remakes, in order: the judged captions with
+/// pieces joined, without scene text and without the original creator's
+/// watermark, which is theirs.
+pub fn rebuilt_captions(run: &Inputs) -> Vec<CaptionEvent> {
+    let j = run.judgement.clone().unwrap_or_default();
+    let mut caps = run.inspect.captions.clone();
+    j.apply_to_captions(&mut caps);
+    caps.retain(|c| j.caption(&c.id).and_then(|n| n.kind.as_deref()) != Some("watermark"));
+    caps
 }
 
 pub fn render(x: &PromptInputs) -> String {
@@ -65,20 +84,12 @@ pub fn render(x: &PromptInputs) -> String {
     let rate = r.probe.rate;
     let at = |f: i64| RationalTime::from_frames(f, rate);
     let j = r.judgement.clone().unwrap_or_default();
-    let mut caps = r.inspect.captions.clone();
-    j.apply_to_captions(&mut caps);
     let kind = |c: &CaptionEvent| {
         j.caption(&c.id)
             .and_then(|n| n.kind.clone())
             .unwrap_or_else(|| "caption".to_string())
     };
-    // The original creator's watermark is theirs; it is not rebuilt.
-    let watermarks: Vec<String> = caps
-        .iter()
-        .filter(|c| kind(c) == "watermark")
-        .map(|c| c.id.clone())
-        .collect();
-    caps.retain(|c| !watermarks.contains(&c.id));
+    let caps = rebuilt_captions(r);
     let clips: Vec<&model::Asset> = x
         .assets
         .clips
@@ -86,6 +97,7 @@ pub fn render(x: &PromptInputs) -> String {
         .filter(|c| c.duplicate_of.is_none())
         .collect();
     let source = match x.script {
+        _ if !x.captions => TextSource::Off,
         Some(lines) => TextSource::Script(lines),
         None if clips.iter().any(|c| !c.words.is_empty()) => TextSource::Transcripts,
         None => TextSource::Draft,
@@ -239,10 +251,18 @@ pub fn render(x: &PromptInputs) -> String {
             cuts.join(", ")
         }
     );
-    let _ = writeln!(
-        d,
-        "- every caption above shows at its frames, place and style, as editable text"
-    );
+    if x.captions {
+        let _ = writeln!(
+            d,
+            "- every caption above shows at its frames, place and style, as editable text"
+        );
+    }
+    if x.voiceover.is_some() {
+        let _ = writeln!(
+            d,
+            "- every voiceover line plays from its frame, and the video is labelled as having an AI voice where the platform asks"
+        );
+    }
     let _ = writeln!(d, "- no frame is black or empty, and no clip is stretched");
     let _ = writeln!(
         d,
@@ -265,6 +285,10 @@ fn captions(
     let _ = writeln!(d, "## 3. Captions");
     if caps.is_empty() {
         let _ = writeln!(d, "None.\n");
+        return;
+    }
+    if let TextSource::Off = source {
+        let _ = writeln!(d, "None: the user chose a rebuild without captions.\n");
         return;
     }
     let _ = writeln!(
@@ -317,10 +341,15 @@ fn captions(
         TextSource::Draft => {
             let _ = writeln!(
                 d,
-                "Text: no script and no speech in the clips. Draft each line in the voice and length of the \
-                 original, show the list to the user, and wait for approval before building.\n"
+                "Text: no script and no speech in the clips. Stop and ask the user which they want:\n\
+                 - an AI voiceover: draft one line per caption below, in the voice and length of the \
+                 original, get the user's approval, save it as a script and run \
+                 `viralcraft voiceover <run_dir> --script <file> --engine <say|openai|elevenlabs>`, \
+                 then make this prompt again with `--script <file>`\n\
+                 - no captions: make this prompt again with `--no-captions`\n"
             );
         }
+        TextSource::Off => {}
     }
     let _ = writeln!(
         d,
@@ -345,7 +374,7 @@ fn captions(
                 None => "draft one: the script ran out".to_string(),
             },
             TextSource::Transcripts => "from the clip's speech".to_string(),
-            TextSource::Draft => "draft".to_string(),
+            TextSource::Draft | TextSource::Off => "draft".to_string(),
         };
         let _ = writeln!(
             d,
@@ -382,12 +411,33 @@ fn sound(d: &mut String, x: &PromptInputs, clips: &[&model::Asset]) {
     let _ = writeln!(
         d,
         "- clip audio: {}",
-        if speech {
-            "keep the speech of the clips you place"
-        } else {
-            "the clips have no speech"
+        match (speech, x.voiceover.is_some()) {
+            (_, true) => "keep the clips' own sound low (about -18 dB) under the voiceover",
+            (true, false) => "keep the speech of the clips you place",
+            (false, false) => "the clips have no speech",
         }
     );
+    if let Some(v) = x.voiceover {
+        let _ = writeln!(
+            d,
+            "- voiceover ({} voice {}): place each line on its own audio track at its frame",
+            v.engine, v.voice
+        );
+        for l in &v.lines {
+            let _ = writeln!(
+                d,
+                "  - f{}: {} ({:.2}s{})",
+                l.start,
+                l.file,
+                l.seconds,
+                if l.fits {
+                    String::new()
+                } else {
+                    format!(", runs {} frames past the next caption: shorten the line or let it overlap", (l.seconds * x.run.probe.rate.as_f64()).round() as i64 - l.room)
+                }
+            );
+        }
+    }
     if a.music.is_empty() {
         let _ = writeln!(d, "- music: none in the original");
     } else {
@@ -519,8 +569,10 @@ fn your_clips(d: &mut String, x: &PromptInputs) {
     }
 }
 
-/// Reads a finished run and its assets and writes REBUILD-PROMPT.md.
-pub fn run(run_dir: &Path, script: Option<&Path>) -> Result<PathBuf, PromptError> {
+/// Reads a finished run and its assets and writes REBUILD-PROMPT.md. A
+/// voiceover made by `viralcraft voiceover` is used when one exists; its
+/// lines are the script unless `script` is given, which must match them.
+pub fn run(run_dir: &Path, script: Option<&Path>, captions: bool) -> Result<PathBuf, PromptError> {
     let template_path = run_dir.join(template::TEMPLATE_FILE);
     let template = fs::read_to_string(&template_path)
         .map_err(|_| PromptError::NoTemplate(template_path.clone()))?;
@@ -536,7 +588,7 @@ pub fn run(run_dir: &Path, script: Option<&Path>) -> Result<PathBuf, PromptError
             path: assets_path,
             source,
         })?;
-    let lines = match script {
+    let mut lines = match script {
         Some(p) => Some(script_lines(&fs::read_to_string(p).map_err(|source| {
             PromptError::Io {
                 path: p.to_path_buf(),
@@ -545,12 +597,32 @@ pub fn run(run_dir: &Path, script: Option<&Path>) -> Result<PathBuf, PromptError
         })?)),
         None => None,
     };
+    let voice_path = dir.join(crate::voiceover::VOICEOVER_FILE);
+    let voiceover: Option<model::Voiceover> = match fs::read_to_string(&voice_path) {
+        Ok(text) => Some(
+            serde_json::from_str(&text).map_err(|source| PromptError::Json {
+                path: voice_path.clone(),
+                source,
+            })?,
+        ),
+        Err(_) => None,
+    };
+    if let Some(v) = &voiceover {
+        let spoken: Vec<String> = v.lines.iter().map(|l| l.text.clone()).collect();
+        match &lines {
+            Some(l) if *l != spoken => return Err(PromptError::VoiceoverMismatch(voice_path)),
+            Some(_) => {}
+            None => lines = Some(spoken),
+        }
+    }
     let inputs = editspec::load(run_dir)?;
     let doc = render(&PromptInputs {
         run: &inputs,
         template: &template,
         assets: &assets,
         script: lines.as_deref(),
+        voiceover: voiceover.as_ref(),
+        captions,
     });
     let out = dir.join(PROMPT_FILE);
     fs::write(&out, doc).map_err(|source| PromptError::Io {
@@ -590,6 +662,8 @@ mod tests {
             template: &data("TEMPLATE.md"),
             assets,
             script,
+            voiceover: None,
+            captions: true,
         })
     }
 
@@ -644,17 +718,6 @@ mod tests {
     }
 
     #[test]
-    fn with_no_script_and_no_speech_the_agent_drafts_for_approval() {
-        let mut silent = assets();
-        for c in &mut silent.clips {
-            c.words.clear();
-            c.transcript.clear();
-        }
-        let doc = prompt(&silent, None);
-        assert!(doc.contains("wait for approval before building"), "{doc}");
-    }
-
-    #[test]
     fn duplicates_are_skipped_and_short_clips_are_not_offered() {
         let doc = prompt(&assets(), None);
         assert!(doc.contains("same file as shelf.mp4; skip it"));
@@ -703,6 +766,126 @@ mod tests {
         assert!(doc.contains("### pour.mp4\n4.500s · 720 x 1280 · 30 fps · thumbnail rebuild/thumbs/pour.jpg\nspeech: none\nsounds: tick\n"), "{doc}");
     }
 
+    fn voiceover() -> model::Voiceover {
+        let line =
+            |caption: &str, text: &str, start: i64, seconds: f64, room: i64| model::VoiceLine {
+                caption: caption.into(),
+                text: text.into(),
+                file: format!("rebuild/voiceover/{caption}.wav"),
+                start,
+                seconds,
+                room,
+                fits: seconds * 30.0 <= room as f64,
+            };
+        model::Voiceover {
+            version: 1,
+            engine: "say".into(),
+            voice: "Samantha".into(),
+            model: String::new(),
+            lines: vec![
+                line("c1", "First we pour", 0, 1.2, 60),
+                line("c2", "then we whisk it hard for a long time", 60, 2.5, 60),
+            ],
+        }
+    }
+
+    #[test]
+    fn a_voiceover_is_placed_line_by_line_and_its_text_captions_it() {
+        let v = voiceover();
+        let script: Vec<String> = v.lines.iter().map(|l| l.text.clone()).collect();
+        let doc = render(&PromptInputs {
+            run: &run_inputs(),
+            template: &data("TEMPLATE.md"),
+            assets: &assets(),
+            script: Some(&script),
+            voiceover: Some(&v),
+            captions: true,
+        });
+        assert!(
+            doc.contains("- voiceover (say voice Samantha): place each line"),
+            "{doc}"
+        );
+        assert!(
+            doc.contains("  - f0: rebuild/voiceover/c1.wav (1.20s)\n"),
+            "{doc}"
+        );
+        assert!(
+            doc.contains(
+                "  - f60: rebuild/voiceover/c2.wav (2.50s, runs 15 frames past the next caption"
+            ),
+            "{doc}"
+        );
+        assert!(caption_rows(&doc)[0].contains("| First we pour |"));
+        assert!(doc.contains("about -18 dB) under the voiceover"));
+        assert!(doc.contains("labelled as having an AI voice"));
+    }
+
+    #[test]
+    fn without_captions_the_caption_step_is_empty() {
+        let doc = render(&PromptInputs {
+            run: &run_inputs(),
+            template: &data("TEMPLATE.md"),
+            assets: &assets(),
+            script: None,
+            voiceover: None,
+            captions: false,
+        });
+        assert!(
+            doc.contains("None: the user chose a rebuild without captions."),
+            "{doc}"
+        );
+        assert!(caption_rows(&doc).is_empty());
+        assert!(!doc.contains("every caption above"));
+    }
+
+    #[test]
+    fn with_no_script_and_no_speech_the_user_chooses_voiceover_or_none() {
+        let mut silent = assets();
+        for c in &mut silent.clips {
+            c.words.clear();
+        }
+        let doc = prompt(&silent, None);
+        assert!(doc.contains("an AI voiceover"), "{doc}");
+        assert!(doc.contains(
+            "viralcraft voiceover <run_dir> --script <file> --engine <say|openai|elevenlabs>"
+        ));
+        assert!(doc.contains("no captions: make this prompt again with `--no-captions`"));
+    }
+
+    #[test]
+    fn a_voiceover_from_another_script_is_refused() {
+        let dir = tempfile::tempdir().unwrap();
+        let cuts3 = Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../editspec/tests/data/cuts-3"
+        ));
+        for f in [
+            "probe.json",
+            "shots.json",
+            "audio.json",
+            "inspect.json",
+            "judgement.json",
+        ] {
+            fs::copy(cuts3.join(f), dir.path().join(f)).unwrap();
+        }
+        fs::write(dir.path().join("TEMPLATE.md"), data("TEMPLATE.md")).unwrap();
+        let rb = dir.path().join("rebuild");
+        fs::create_dir(&rb).unwrap();
+        fs::write(rb.join("assets.json"), data("assets.json")).unwrap();
+        fs::write(
+            rb.join("voiceover.json"),
+            serde_json::to_string(&voiceover()).unwrap(),
+        )
+        .unwrap();
+        let script = dir.path().join("s.txt");
+        fs::write(&script, "Something else\nentirely\n").unwrap();
+        let err = run(dir.path(), Some(&script), true).unwrap_err();
+        assert!(matches!(err, PromptError::VoiceoverMismatch(_)), "{err}");
+        let ok = run(dir.path(), None, true).unwrap();
+        let doc = fs::read_to_string(ok).unwrap();
+        assert!(caption_rows(&doc)[1].contains("| then we whisk it hard for a long time |"));
+    }
+
     #[test]
     fn nothing_names_an_editor() {
         let doc = prompt(&assets(), None).to_lowercase();
@@ -715,7 +898,7 @@ mod tests {
     fn refuses_while_the_template_has_todo() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("TEMPLATE.md"), "fill with | TODO: x").unwrap();
-        let err = run(dir.path(), None).unwrap_err();
+        let err = run(dir.path(), None, true).unwrap_err();
         assert!(matches!(err, PromptError::TemplateTodo(_)), "{err}");
     }
 
@@ -723,7 +906,7 @@ mod tests {
     fn refuses_without_assets() {
         let dir = tempfile::tempdir().unwrap();
         fs::write(dir.path().join("TEMPLATE.md"), data("TEMPLATE.md")).unwrap();
-        let err = run(dir.path(), None).unwrap_err();
+        let err = run(dir.path(), None, true).unwrap_err();
         assert!(matches!(err, PromptError::NoAssets(_)), "{err}");
         assert!(err.to_string().contains("viralcraft assets"));
     }

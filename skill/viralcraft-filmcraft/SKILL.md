@@ -56,7 +56,9 @@ Work in `<run_dir>/rebuild/`. Never write to the user's clips.
    outline and box. Then centre it on the prompt's pixel position, using
    the place, measure and move steps in the reference.
 5. Add transitions only where the prompt lists them.
-6. Place music and sound effects on A2 and A3 at the prompt's frames.
+6. Place music and sound effects on A2 and A3 at the prompt's frames. A
+   voiceover's line files go on their own audio track, each at its frame,
+   with the clips' own sound lowered under it (`clip.audioGain`).
 7. Save to `rebuild/rebuild.fcproj`.
 
 Batch commands: one `command_batch`, or one `run` file, per step. After each

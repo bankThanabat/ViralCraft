@@ -106,9 +106,27 @@ Ask whether they want this format rebuilt with their own footage. If yes:
    `duplicate_of`, tell the user it is a copy.
 2. Ask for a script: the caption lines they want, one per line. If they give
    one, save it as `<run_dir>/rebuild/script.txt` and pass `--script`.
-3. `viralcraft prompt <run_dir> [--script <file>]` writes
-   `<run_dir>/rebuild/REBUILD-PROMPT.md`.
-4. Hand the prompt to an editor skill. With FilmCraft, use the
+3. No script, and no clip has speech (`words` is 0 for every clip in the
+   assets JSON)? Then there is nothing to caption from. Ask the user to
+   choose:
+   - **AI voiceover.** Ask which voice: `say` (free, the computer's own
+     voices, a bit robotic; Thai and English on a Mac), `openai` or
+     `elevenlabs` (natural voices, the user's own account and key, a small
+     cost per video). For a cloud voice the user puts their key in
+     `OPENAI_API_KEY` or `ELEVENLABS_API_KEY` in the shell that runs the
+     CLI. Never ask them to paste a key into the chat. Draft one line per
+     caption in the original's language, voice and length, short enough to
+     say before the next caption. Show the lines and wait for approval.
+     Save them as `<run_dir>/rebuild/script.txt` and run
+     `viralcraft voiceover <run_dir> --script <file> --engine <engine>`
+     (`--voice`, `--model` to change the defaults). If `too_long` lists
+     captions, shorten those lines and run it again.
+   - **No captions.** Pass `--no-captions` in the next step.
+   Tell the user that platforms ask creators to label AI voices.
+4. `viralcraft prompt <run_dir> [--script <file>] [--no-captions]` writes
+   `<run_dir>/rebuild/REBUILD-PROMPT.md`. After a voiceover, `--script` can
+   be left out; the voiceover's lines are the script.
+5. Hand the prompt to an editor skill. With FilmCraft, use the
    `viralcraft-filmcraft` skill. Without an editor skill, give the user the
    prompt's path.
 
