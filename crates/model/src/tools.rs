@@ -1,6 +1,7 @@
 //! The one place ViralCraft starts external programs.
 
 use std::io;
+use std::path::Path;
 use std::process::Command;
 
 #[derive(Debug, thiserror::Error)]
@@ -20,7 +21,22 @@ pub enum ToolError {
 /// Runs `program args...`, returns its stdout. On failure the error carries
 /// the full command line and the tail of stderr.
 pub fn run(program: &str, args: &[&str]) -> Result<String, ToolError> {
-    let output = Command::new(program).args(args).output().map_err(|e| {
+    exec(Command::new(program).args(args), program, args)
+}
+
+/// Like [`run`], with `dir` as the working directory. Use it to pass ffmpeg
+/// relative paths inside filter arguments, where `:` and `,` in an absolute
+/// path would need escaping.
+pub fn run_in(dir: &Path, program: &str, args: &[&str]) -> Result<String, ToolError> {
+    exec(
+        Command::new(program).args(args).current_dir(dir),
+        program,
+        args,
+    )
+}
+
+fn exec(command: &mut Command, program: &str, args: &[&str]) -> Result<String, ToolError> {
+    let output = command.output().map_err(|e| {
         if e.kind() == io::ErrorKind::NotFound {
             ToolError::NotFound {
                 program: program.to_string(),
@@ -61,6 +77,14 @@ mod tests {
         let err = run("sh", &["-c", "echo boom >&2; exit 3"]).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("sh") && msg.contains("boom"), "{msg}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn run_in_uses_the_given_working_directory() {
+        let dir = std::env::temp_dir().canonicalize().unwrap();
+        let out = run_in(&dir, "pwd", &[]).unwrap();
+        assert_eq!(Path::new(out.trim()).canonicalize().unwrap(), dir);
     }
 
     #[test]

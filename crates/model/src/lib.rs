@@ -5,8 +5,10 @@
 //! exclusive end.
 
 pub mod probe;
+pub mod shots;
 pub mod time;
 pub mod tools;
 
 pub use probe::{AudioInfo, Probe, SafeZone};
+pub use shots::{Candidate, Segment, Shots, Transition, TransitionKind};
 pub use time::{Fps, RationalTime, TimeError, TimeRange};

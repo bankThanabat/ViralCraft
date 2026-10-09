@@ -99,30 +99,30 @@ single-frame OCR reference. A `fixtures.json` records every expected value.
 **Estimated scope:** S
 
 ## Checkpoint: Foundation
-- [ ] `cargo test --workspace` green in under 2 s
-- [ ] `viralcraft doctor` correct on this Mac
-- [ ] `viralcraft ingest tests/fixtures/cuts-3-vfr.mp4` yields a CFR file and a correct `probe.json`
-- [ ] Review with human before proceeding
+- [x] `cargo test --workspace` green in under 2 s
+- [x] `viralcraft doctor` correct on this Mac
+- [x] `viralcraft ingest tests/fixtures/cuts-3-vfr.mp4` yields a CFR file and a correct `probe.json`
+- [ ] Review with human before proceeding (folded into the Phase 2 checkpoint)
 
 ## Phase 2: Measurement
 
-## Task 5: shots from scdet, every frame extracted
+## Task 5: shots from scdet, every frame extracted ✅ done
 
 **Description:** `crates/shots` runs ffmpeg `scdet` on `source.cfr.mp4`,
 parses the score lines, applies the threshold policy (default 10 on the 0..100
 scale, kept in `shots.json` with every candidate's score), builds the segment
 list, flags dissolve and flash candidates (score spread over several frames,
 or a one-frame luma spike), and extracts every frame at half resolution into
-`frames/seg-NNN/fNNNN.jpg`.
+`frames/fNNNNN.jpg` (flat; `shots.json` maps frames to shots).
 
 **Acceptance criteria:**
-- [ ] `scdet` output parsed from a string literal yields cut frames `[60, 120]` with their scores
-- [ ] A score run spread over 6 frames is reported as a `dissolve` candidate; an isolated frame with a luma spike and no following change is `flash`
-- [ ] Ignored test on `cuts-3.mp4`: 3 segments, cuts within ±1 of 60 and 120, 180 frames on disk
+- [x] `scdet` output parsed from a string literal yields cut frames `[60, 120]` with their scores
+- [x] A score run spread over 6 frames is reported as a `dissolve` candidate; an isolated frame with a luma spike and no following change is `flash`
+- [x] Ignored test on `cuts-3.mp4`: 3 segments, cuts within ±1 of 60 and 120, 180 frames on disk
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p shots` and `cargo test -p shots -- --ignored`
-- [ ] Manual check: `viralcraft shots out/cuts-3` prints segment count 3
+- [x] Tests pass: `cargo test -p shots` and `cargo test -p shots -- --ignored`
+- [x] Manual check: `viralcraft shots out/cuts-3` prints segment count 3
 
 **Dependencies:** 3, 4
 

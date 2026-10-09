@@ -39,6 +39,13 @@ enum Command {
         #[arg(long, default_value = model::probe::DEFAULT_SAFE_ZONE)]
         safe_zone: String,
     },
+    /// Detect cuts, dissolves and flashes; extract every frame at half size.
+    Shots {
+        run_dir: PathBuf,
+        /// scdet score (0..100) a hard cut must reach.
+        #[arg(long, default_value_t = shots::DEFAULT_THRESHOLD)]
+        threshold: f64,
+    },
 }
 
 impl Command {
@@ -46,6 +53,7 @@ impl Command {
         match self {
             Command::Doctor { .. } => "doctor",
             Command::Ingest { .. } => "ingest",
+            Command::Shots { .. } => "shots",
         }
     }
 }
@@ -90,6 +98,20 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                         run_dir.join(ingest::SOURCE_FILE),
                         run_dir.join(ingest::PROBE_FILE),
                     ],
+                }),
+                true,
+            ))
+        }
+        Command::Shots { run_dir, threshold } => {
+            eprintln!("shots: {}", run_dir.display());
+            let shots = shots::run_with_threshold(&run_dir, threshold)?;
+            Ok((
+                json!({
+                    "ok": true,
+                    "segments": shots.segments.len(),
+                    "transitions": shots.transitions.len(),
+                    "frames": shots.frames,
+                    "files": [run_dir.join(shots::SHOTS_FILE), run_dir.join(shots::FRAMES_DIR)],
                 }),
                 true,
             ))

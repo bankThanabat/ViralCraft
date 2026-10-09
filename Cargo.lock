@@ -360,6 +360,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "shots"
+version = "0.1.0"
+dependencies = [
+ "ingest",
+ "model",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -443,6 +455,7 @@ dependencies = [
  "ingest",
  "model",
  "serde_json",
+ "shots",
  "tempfile",
  "which",
 ]

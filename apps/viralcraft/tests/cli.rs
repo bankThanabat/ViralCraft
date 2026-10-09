@@ -73,3 +73,18 @@ fn ingest_with_an_empty_inbox_asks_then_fails_with_a_json_error() {
         .contains("no input video"));
     assert!(String::from_utf8_lossy(&out.stderr).contains("No video found"));
 }
+
+#[test]
+fn shots_on_a_missing_run_dir_reports_probe_json_in_the_error() {
+    let dir = tempfile::tempdir().unwrap();
+    let missing = dir.path().join("nope");
+    let out = viralcraft(&["shots", missing.to_str().unwrap()], dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let summary = single_json_line(&out.stdout);
+    assert_eq!(summary["command"], "shots");
+    assert!(
+        summary["error"].as_str().unwrap().contains("probe.json"),
+        "{summary}"
+    );
+}

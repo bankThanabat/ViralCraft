@@ -125,7 +125,7 @@ out/                       → run directories (gitignored)
 source.cfr.mp4    ingest   the input re-muxed or re-encoded to constant frame rate
 probe.json        ingest   rate (rational), frames, width, height, aspect, audio offset
 shots.json        shots    segments[] and transition candidates, in frames
-frames/           shots    every frame at half resolution as JPEG (seg-001/f0000.jpg ...)
+frames/           shots    every frame at half resolution as JPEG (f00000.jpg ...)
 audio.json        audio    words[] with DTW times, beats[], tempo, onsets[], music/speech spans
 inspect.json      inspect  caption events, overlay events, transform keyframes, look stats
 EDIT-SPEC.md      editspec measured sections filled; judgement slots marked
