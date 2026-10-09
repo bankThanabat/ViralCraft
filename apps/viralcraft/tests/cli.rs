@@ -39,15 +39,6 @@ fn doctor_reports_missing_models_and_exits_1() {
 }
 
 #[test]
-fn unknown_subcommand_fails_with_usage_on_stderr() {
-    let empty = tempfile::tempdir().unwrap();
-    let out = viralcraft(&["nope"], empty.path());
-    assert!(!out.status.success());
-    assert!(out.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("Usage"));
-}
-
-#[test]
 fn ingest_with_an_empty_inbox_asks_then_fails_with_a_json_error() {
     let dir = tempfile::tempdir().unwrap();
     let inbox = dir.path().join("inbox");
@@ -294,4 +285,26 @@ fn there_is_no_preview_command_and_doctor_offers_no_ffmpeg_full() {
         .collect();
     assert!(!names.iter().any(|n| n.contains("libass")), "{names:?}");
     assert!(!String::from_utf8_lossy(&doctor.stderr).contains("ffmpeg-full"));
+}
+
+#[test]
+fn a_mistyped_command_still_prints_one_json_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = viralcraft(&["voicover", "x"], dir.path());
+    assert_eq!(out.status.code(), Some(2));
+    let summary = single_json_line(&out.stdout);
+    assert_eq!(summary["ok"], false);
+    assert!(
+        summary["error"].as_str().unwrap().contains("voicover"),
+        "{summary}"
+    );
+    assert!(String::from_utf8_lossy(&out.stderr).contains("Usage"));
+}
+
+#[test]
+fn help_is_still_plain_text() {
+    let dir = tempfile::tempdir().unwrap();
+    let out = viralcraft(&["--help"], dir.path());
+    assert!(out.status.success());
+    assert!(String::from_utf8_lossy(&out.stdout).starts_with("Turn a viral"));
 }

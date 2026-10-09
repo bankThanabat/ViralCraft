@@ -134,7 +134,28 @@ impl Command {
 }
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(e) => {
+            use clap::error::ErrorKind;
+            if matches!(e.kind(), ErrorKind::DisplayHelp | ErrorKind::DisplayVersion) {
+                e.exit();
+            }
+            // Usage errors keep the contract too: one JSON line on stdout.
+            let text = e.to_string();
+            eprint!("{text}");
+            let first = text
+                .lines()
+                .next()
+                .unwrap_or_default()
+                .trim_start_matches("error: ");
+            println!(
+                "{}",
+                json!({ "command": null, "ok": false, "error": first })
+            );
+            return ExitCode::from(2);
+        }
+    };
     let name = cli.command.name();
     let (summary, ok) = match run(cli.command) {
         Ok(result) => result,
