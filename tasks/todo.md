@@ -293,6 +293,32 @@ problems. Fix them, then rerun the clip and compare.
 
 **Estimated scope:** M (several small commits)
 
+## Task 11c: optional sound-effect names in the transcript
+
+**Description:** Name non-speech sounds (typing, whoosh, pop, ding, thud...)
+with Google's YAMNet (Apache-2.0, 16 MB, runs through rten with no
+conversion) and write them into the transcript in brackets where they
+happen, closed-caption style: `here it goes. [whoosh] [thud]`. The model is
+optional: setup asks whether the user wants the feature, and without it
+everything else works. YAMNet labels in 0.48 s steps; that is precise
+enough for bracketed tags, so no frame-exact alignment is attempted.
+Chosen over EfficientAT (more accurate, but PyTorch only) because it runs
+today; the classifier sits behind one function so it can be swapped.
+
+**Acceptance criteria:**
+- [ ] `doctor` lists the YAMNet model as optional: missing does not fail the check, and `--install` asks "do you want sound-effect names?" before downloading
+- [ ] Sounds are named from YAMNet scores: speech, music and room-tone classes are ignored, scores under 0.3 dropped, neighbouring windows with the same label merged; the label is the first name (`Whoosh, swoosh, swish` → `whoosh`)
+- [ ] `audio.json` gains `transcript`: words and bracketed sounds in time order, whisper's own tags included
+- [ ] With the model absent, `audio` runs and lists only whisper's tags
+
+**Verification:**
+- [ ] Tests pass: `cargo test --workspace`; ignored: the cuts-3 click track yields a click-like sound label
+- [ ] Manual check: the real clip's transcript shows `[whoosh]` before the punchline
+
+**Dependencies:** 11b
+
+**Estimated scope:** M
+
 ## Checkpoint: Measurement
 - [x] All Phase 2 ignored tests pass on the fixtures (10 tests, 21 s release)
 - [x] Detection time per frame recorded: 25 to 33 ms (tasks/notes.md); fallback deferred to the real-clip run

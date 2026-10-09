@@ -18,28 +18,48 @@ pub struct ModelSpec {
     pub url: &'static str,
     pub sha256: &'static str,
     pub size: u64,
+    /// Optional models enable an extra feature; missing is fine.
+    pub optional: bool,
+    /// What the model is for, shown when asking to install it.
+    pub purpose: &'static str,
 }
 
 /// Every model ViralCraft loads. Hashes were taken from the files verified on
-/// 2026-10-09; the whisper hash matches Hugging Face's published LFS etag.
-pub const MODELS: [ModelSpec; 3] = [
+/// 2026-10-09; the whisper and YAMNet hashes match Hugging Face's published
+/// LFS etags. YAMNet is Google's AudioSet sound classifier (Apache-2.0),
+/// converted to ONNX by the audiomagic repo; the URL is pinned to a commit.
+pub const MODELS: [ModelSpec; 4] = [
     ModelSpec {
         file: "ggml-tiny.en.bin",
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
         sha256: "921e4cf8686fdd993dcd081a5da5b6c365bfde1162e72b08d75ac75289920b1f",
         size: 77_704_715,
+        optional: false,
+        purpose: "speech transcription",
     },
     ModelSpec {
         file: "text-detection.rten",
         url: "https://ocrs-models.s3-accelerate.amazonaws.com/text-detection.rten",
         sha256: "f15cfb56bd02c4bf478a20343986504a1f01e1665c2b3a0ad66340f054b1b5ca",
         size: 2_510_284,
+        optional: false,
+        purpose: "finding on-screen text",
     },
     ModelSpec {
         file: "text-recognition.rten",
         url: "https://ocrs-models.s3-accelerate.amazonaws.com/text-recognition.rten",
         sha256: "e484866d4cce403175bd8d00b128feb08ab42e208de30e42cd9889d8f1735a6e",
         size: 9_716_568,
+        optional: false,
+        purpose: "reading on-screen text",
+    },
+    ModelSpec {
+        file: "yamnet.onnx",
+        url: "https://huggingface.co/audiomagic/yamnet-onnx/resolve/f25b741c2f0bdc6d7e6db24b5fddda23347dbafd/yamnet.onnx",
+        sha256: "d3835ffbbd4a1bb3e777f0ca217b5007907f5171dd5d17c4236b95b2af8f908e",
+        size: 16_093_355,
+        optional: true,
+        purpose: "sound-effect names (typing, whoosh, pop) in the transcript",
     },
 ];
 
@@ -88,6 +108,9 @@ pub struct Item {
     pub path: Option<PathBuf>,
     /// The command that fixes this item; `None` when it is present.
     pub fix: Option<String>,
+    /// Missing optional items do not fail the check.
+    pub optional: bool,
+    pub purpose: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -99,6 +122,12 @@ pub struct Report {
 impl Report {
     pub fn item(&self, name: &str) -> Option<&Item> {
         self.items.iter().find(|i| i.name == name)
+    }
+
+    /// Whether anything could be installed, including optional extras that
+    /// do not fail the check.
+    pub fn has_offers(&self) -> bool {
+        self.items.iter().any(|i| i.fix.is_some())
     }
 }
 
@@ -146,6 +175,8 @@ pub fn check(env: &Env, models: &[ModelSpec]) -> Report {
             },
             fix: path.is_none().then(|| tool_fix(tool, env.os)),
             path,
+            optional: false,
+            purpose: "video and audio decoding".to_string(),
         });
     }
     for model in models {
@@ -156,9 +187,13 @@ pub fn check(env: &Env, models: &[ModelSpec]) -> Report {
             state,
             fix: (state != State::Present).then(|| model_fix(model, &path)),
             path: Some(path),
+            optional: model.optional,
+            purpose: model.purpose.to_string(),
         });
     }
-    let ok = items.iter().all(|i| i.state == State::Present);
+    let ok = items
+        .iter()
+        .all(|i| i.state == State::Present || (i.optional && i.state == State::Missing));
     Report { ok, items }
 }
 
@@ -219,6 +254,8 @@ mod tests {
             url: "https://example.test/model.bin",
             sha256: Box::leak(sha256_hex(content).into_boxed_str()),
             size: content.len() as u64,
+            optional: false,
+            purpose: "test",
         }
     }
 
@@ -337,17 +374,74 @@ mod tests {
         assert_eq!(ran, ["brew install ffmpeg"]);
     }
 
+    fn optional_model(name: &'static str, content: &[u8]) -> ModelSpec {
+        ModelSpec {
+            optional: true,
+            purpose: "sound-effect names",
+            ..test_model(name, content)
+        }
+    }
+
     #[test]
-    fn the_shipped_manifest_pins_three_models_with_real_hashes() {
+    fn a_missing_optional_model_does_not_fail_the_check() {
+        let dir = tempfile::tempdir().unwrap();
+        let report = check(
+            &env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]),
+            &[optional_model("sfx.onnx", b"w")],
+        );
+        assert!(report.ok);
+        let item = report.item("sfx.onnx").unwrap();
+        assert_eq!(item.state, State::Missing);
+        assert!(item.optional);
+        assert!(item.fix.is_some(), "still offered");
+    }
+
+    #[test]
+    fn install_is_offered_when_only_an_optional_model_is_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let report = check(
+            &env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]),
+            &[optional_model("sfx.onnx", b"w")],
+        );
+        assert!(report.ok);
+        assert!(report.has_offers());
+    }
+
+    #[test]
+    fn nothing_is_offered_when_everything_is_present() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(!check(&env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]), &[]).has_offers());
+    }
+
+    #[test]
+    fn a_corrupt_optional_model_does_fail_the_check() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("sfx.onnx"), b"tampered").unwrap();
+        let report = check(
+            &env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]),
+            &[optional_model("sfx.onnx", b"w")],
+        );
+        assert!(!report.ok, "a broken file would crash the feature");
+    }
+
+    #[test]
+    fn the_shipped_manifest_pins_every_model_with_a_real_hash() {
         let names: Vec<_> = MODELS.iter().map(|m| m.file).collect();
         assert_eq!(
             names,
             [
                 "ggml-tiny.en.bin",
                 "text-detection.rten",
-                "text-recognition.rten"
+                "text-recognition.rten",
+                "yamnet.onnx"
             ]
         );
+        let optional: Vec<_> = MODELS
+            .iter()
+            .filter(|m| m.optional)
+            .map(|m| m.file)
+            .collect();
+        assert_eq!(optional, ["yamnet.onnx"]);
         assert!(MODELS
             .iter()
             .all(|m| m.sha256.len() == 64 && m.url.starts_with("https://")));

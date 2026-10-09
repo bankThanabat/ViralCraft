@@ -16,7 +16,7 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
     let mut report = doctor::check(&env, &MODELS);
     print_report(&report);
 
-    if install && !report.ok {
+    if install && report.has_offers() {
         doctor::install(&report, ask, run_fix)?;
         report = doctor::check(&env, &MODELS);
         eprintln!();
@@ -25,6 +25,8 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
         eprintln!(
             "\nRun `viralcraft doctor --install` to install, or run the commands above yourself."
         );
+    } else if report.has_offers() {
+        eprintln!("\nOptional features are off. `viralcraft doctor --install` offers them.");
     }
 
     let summary = json!({ "ok": report.ok, "items": report.items });
@@ -33,11 +35,16 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
 
 fn print_report(report: &Report) {
     for item in &report.items {
-        let mark = match item.state {
-            State::Present => "ok     ",
-            State::Missing => "missing",
-            State::Corrupt => "corrupt",
+        let mark = match (item.state, item.optional) {
+            (State::Present, _) => "ok     ",
+            (State::Missing, true) => "off    ",
+            (State::Missing, false) => "missing",
+            (State::Corrupt, _) => "corrupt",
         };
+        if item.optional && item.state == State::Missing {
+            eprintln!("{mark}  {}  (optional: {})", item.name, item.purpose);
+            continue;
+        }
         match &item.fix {
             None => eprintln!("{mark}  {}", item.name),
             Some(fix) => eprintln!("{mark}  {}  →  {fix}", item.name),
@@ -47,6 +54,12 @@ fn print_report(report: &Report) {
 
 fn ask(item: &Item) -> bool {
     let fix = item.fix.as_deref().unwrap_or_default();
+    if item.optional && item.state == State::Missing {
+        return crate::prompt::confirm(&format!(
+            "Optional: do you want {}? It downloads {} with `{fix}`. [y/N]",
+            item.purpose, item.name
+        ));
+    }
     crate::prompt::confirm(&format!("Install {} with `{fix}`? [y/N]", item.name))
 }
 
