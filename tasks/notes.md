@@ -100,3 +100,35 @@ Two fixes came out of it:
 - FilmCraft imports unknown generators as Black Video, which blacked out
   the picture under every caption. Placeholder clips are now disabled:
   visible and labelled, never rendered.
+
+## Captions in scripts the OCR cannot read (Thai clip, 2026-10-09)
+
+The ocrs models read Latin only; on Thai they return different garbage on
+every frame ("onIGS", "1020?CS", "on?GS" for one title). Pieces of one caption
+were merged only when they read the same, so the title alone became ~17
+events and the clip 138.
+
+Text similarity does not separate same from different (same title pieces
+scored 0.14 to 0.67). Pixels do: rendered text keeps its shape while the
+scene behind it moves. Ink = fill-coloured pixels within 2 px of the outline
+colour (without the outline, a pale hand behind white text counted as ink).
+Share of ink in the same place on both pieces, worse direction:
+- same text over a moving scene or a passing hand: 0.82 to 1.00
+- different text in the same place (English clip): 0.35 at most
+Merge threshold 0.8. A merged piece keeps its fullest reading.
+
+Result on the Thai clip: caption-like events (pale fill, at least 0.15
+wide) 101 -> 73, average length 21 -> 45 frames, frames covered 2107 ->
+3259. The total rose 138 -> 152 because scene text on the shelf now also
+survives as longer events; the agent marks those scene-text. English clip:
+35 -> 33, the only change being three pieces of the toy box's text joined.
+
+Still split: the two lines of one caption when their ends differ by more
+than 2 frames, and captions whose fill and outline colours swap between
+pieces. The skill tells the agent to judge such ids the same way.
+
+Perf: the first version decoded two frames and re-measured colours for
+every pair of pieces; pieces can be one frame long (a whisk moving behind
+the text), which took the debug build past 45 minutes. Colours are now
+measured once per track and the last frame is reused: release inspect on
+the 124 s Thai clip takes 243 s, English 125 s (was 125 s).

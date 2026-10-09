@@ -26,6 +26,10 @@ const THUMB: (u32, u32) = (135, 240);
 /// Mean absolute grey-level difference inside a box that counts as new
 /// content (0..255). JPEG noise on a still caption stays under 3.
 const CONTENT_CHANGE: f64 = 12.0;
+/// Share of a caption's ink that must stay put for two pieces to be the
+/// same caption. Measured: same text 0.82-1.00 over a moving scene and a
+/// hand passing behind it, different text in the same place 0.35 at most.
+const SAME_INK: f64 = 0.8;
 /// OCR line height to font size; caps and x-height sit inside the em box.
 const LINE_TO_FONT: f64 = 0.75;
 
@@ -84,31 +88,36 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
                 ) > CONTENT_CHANGE
         };
         let spans = captions::split_track(&track, changed);
+        let mut ink = InkCheck::new(run_dir);
         let mut failure = None;
-        let spans = captions::label(spans, |span| {
-            let sample = (span.start + span.end) / 2;
-            let lines = match read_cache.entry(sample) {
-                Entry::Occupied(e) => e.into_mut(),
-                Entry::Vacant(v) => {
-                    match load(sample)
-                        .and_then(|img| ocr.read_lines(&img).map_err(InspectError::Ocr))
-                    {
-                        Ok(lines) => v.insert(lines),
-                        Err(e) => {
-                            failure = Some(e);
-                            return String::new();
+        let spans = captions::label(
+            spans,
+            |span| {
+                let sample = (span.start + span.end) / 2;
+                let lines = match read_cache.entry(sample) {
+                    Entry::Occupied(e) => e.into_mut(),
+                    Entry::Vacant(v) => {
+                        match load(sample)
+                            .and_then(|img| ocr.read_lines(&img).map_err(InspectError::Ocr))
+                        {
+                            Ok(lines) => v.insert(lines),
+                            Err(e) => {
+                                failure = Some(e);
+                                return String::new();
+                            }
                         }
                     }
-                }
-            };
-            lines
-                .iter()
-                .map(|(b, t)| (b.iou(&span.settled), t))
-                .filter(|(iou, _)| *iou > 0.3)
-                .max_by(|a, b| a.0.total_cmp(&b.0))
-                .map(|(_, t)| t.clone())
-                .unwrap_or_default()
-        });
+                };
+                lines
+                    .iter()
+                    .map(|(b, t)| (b.iou(&span.settled), t))
+                    .filter(|(iou, _)| *iou > 0.3)
+                    .max_by(|a, b| a.0.total_cmp(&b.0))
+                    .map(|(_, t)| t.clone())
+                    .unwrap_or_default()
+            },
+            |prev, next| ink.same(prev, next),
+        );
         if let Some(e) = failure {
             return Err(e);
         }
@@ -254,6 +263,55 @@ fn load_frame(run_dir: &Path, n: u64) -> Result<RgbImage, InspectError> {
     Ok(image::open(&path)
         .map_err(|source| InspectError::Image { path, source })?
         .into_rgb8())
+}
+
+/// Tells whether two touching pieces of one text line show the same text:
+/// the caption's ink sits in the same place on both. Pieces can be a single
+/// frame long, so the fill colour is measured once per track and the last
+/// decoded frame is kept, since it starts the next comparison. A frame that
+/// fails to load only means the pieces stay apart.
+/// A caption's fill and outline colour.
+type InkColours = ([u8; 3], Option<[u8; 3]>);
+
+struct InkCheck<'a> {
+    run_dir: &'a Path,
+    /// Measured on the first comparison; `Some(None)` when unreadable.
+    colours: Option<Option<InkColours>>,
+    last: Option<(u64, RgbImage)>,
+}
+
+impl<'a> InkCheck<'a> {
+    fn new(run_dir: &'a Path) -> Self {
+        Self {
+            run_dir,
+            colours: None,
+            last: None,
+        }
+    }
+
+    fn same(&mut self, prev: &captions::Span, next: &captions::Span) -> bool {
+        let mid = |s: &captions::Span| (s.start + s.end) / 2;
+        let a = match self.last.take() {
+            Some((n, img)) if n == mid(prev) => img,
+            _ => match load_frame(self.run_dir, mid(prev)) {
+                Ok(img) => img,
+                Err(_) => return false,
+            },
+        };
+        let Ok(b) = load_frame(self.run_dir, mid(next)) else {
+            return false;
+        };
+        let bx = pixel_box(&prev.settled.union(&next.settled), &a, 2);
+        let colours = *self.colours.get_or_insert_with(|| {
+            let c = style::caption_colors(&a, bx);
+            style::rgb(&c.fill).map(|fill| (fill, c.outline.as_deref().and_then(style::rgb)))
+        });
+        let same = colours
+            .and_then(|(fill, outline)| style::ink_match(&a, &b, bx, fill, outline))
+            .is_some_and(|m| m >= SAME_INK);
+        self.last = Some((mid(next), b));
+        same
+    }
 }
 
 /// Normalized box to pixels on `img`, grown by `pad` pixels and clipped.

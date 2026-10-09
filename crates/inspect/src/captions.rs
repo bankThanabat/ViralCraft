@@ -184,14 +184,34 @@ pub fn split_track(track: &Track, changed: impl Fn(u64) -> bool) -> Vec<Span> {
         .collect()
 }
 
-/// Attaches recognized text and merges neighbours that read the same.
-pub fn label(spans: Vec<Span>, mut recognize: impl FnMut(&Span) -> String) -> Vec<LabeledSpan> {
+/// Attaches recognized text and merges neighbours that read the same, or
+/// that `looks_same(previous piece, piece)` says show the same text: a
+/// script the OCR cannot read gives different garbage on every piece.
+pub fn label(
+    spans: Vec<Span>,
+    mut recognize: impl FnMut(&Span) -> String,
+    mut looks_same: impl FnMut(&Span, &Span) -> bool,
+) -> Vec<LabeledSpan> {
     let mut out: Vec<LabeledSpan> = Vec::new();
+    let mut last: Option<Span> = None;
     for span in spans {
         let text = recognize(&span).trim().to_string();
-        match out.last_mut() {
-            Some(prev) if prev.end == span.start && prev.text == text => prev.end = span.end,
-            _ => out.push(LabeledSpan {
+        let merge = match (out.last_mut(), &last) {
+            (Some(prev), Some(piece)) if prev.end == span.start => {
+                (prev.text == text || looks_same(piece, &span)).then_some(prev)
+            }
+            _ => None,
+        };
+        match merge {
+            Some(prev) => {
+                prev.end = span.end;
+                // Keep the fullest reading: a merged span is judged by its
+                // text later, and one bad read must not drop the whole line.
+                if letters(&text) > letters(&prev.text) {
+                    prev.text = text;
+                }
+            }
+            None => out.push(LabeledSpan {
                 start: span.start,
                 end: span.end,
                 text,
@@ -199,6 +219,7 @@ pub fn label(spans: Vec<Span>, mut recognize: impl FnMut(&Span) -> String) -> Ve
                 animation: span.animation,
             }),
         }
+        last = Some(span);
     }
     out
 }
@@ -209,8 +230,12 @@ const MIN_TEXT_CHARS: usize = 3;
 /// Captions on screen for fewer frames than this are detection flicker.
 const MIN_CAPTION_FRAMES: u64 = 6;
 
+fn letters(text: &str) -> usize {
+    text.chars().filter(|c| c.is_alphanumeric()).count()
+}
+
 pub fn is_text_line(text: &str) -> bool {
-    text.chars().filter(|c| c.is_alphanumeric()).count() >= MIN_TEXT_CHARS
+    letters(text) >= MIN_TEXT_CHARS
 }
 
 /// Drops lines that are not text, before they can join a real caption.
@@ -429,15 +454,49 @@ mod tests {
                 animation: None,
             },
         ];
-        let events = label(spans, |s| match s.start {
-            10 | 20 => "STOP".to_string(),
-            _ => "SCROLLING".to_string(),
-        });
+        let events = label(
+            spans,
+            |s| match s.start {
+                10 | 20 => "STOP".to_string(),
+                _ => "SCROLLING".to_string(),
+            },
+            |_, _| false,
+        );
         let got: Vec<(u64, u64, &str)> = events
             .iter()
             .map(|e| (e.start, e.end, e.text.as_str()))
             .collect();
         assert_eq!(got, [(10, 25, "STOP"), (25, 30, "SCROLLING")]);
+    }
+
+    #[test]
+    fn pieces_that_look_the_same_merge_even_when_they_read_differently() {
+        // Thai read by a Latin-only OCR gives new garbage on every piece;
+        // the caption's pixels are what stayed the same.
+        let piece = |start, end| Span {
+            start,
+            end,
+            settled: BASE,
+            animation: None,
+        };
+        let spans = vec![piece(10, 20), piece(20, 30), piece(30, 40)];
+        let events = label(
+            spans,
+            |s| match s.start {
+                10 => "on".to_string(),
+                _ => format!("garbage{}", s.start),
+            },
+            |prev, next| (prev.start, next.start) == (10, 20),
+        );
+        let got: Vec<(u64, u64, &str)> = events
+            .iter()
+            .map(|e| (e.start, e.end, e.text.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            [(10, 30, "garbage20"), (30, 40, "garbage30")],
+            "the fuller reading is kept, so a short misread cannot drop the line"
+        );
     }
 
     #[test]

@@ -100,6 +100,108 @@ fn median(pixels: &[[u8; 3]]) -> [u8; 3] {
     out
 }
 
+/// `#RRGGBB` back to a colour.
+pub fn rgb(hex: &str) -> Option<[u8; 3]> {
+    let h = hex.strip_prefix('#').filter(|h| h.len() == 6)?;
+    let part = |i: usize| u8::from_str_radix(h.get(i..i + 2)?, 16).ok();
+    Some([part(0)?, part(2)?, part(4)?])
+}
+
+/// Summed RGB difference under which a pixel counts as caption fill.
+const INK_DISTANCE: u32 = 90;
+/// Pixels from an outline-coloured pixel that fill can be and still be text.
+const OUTLINE_REACH: usize = 2;
+/// Above this share of the box, the "ink" is background of the text colour.
+const INK_MAX_SHARE: f64 = 0.5;
+
+/// How much of the caption's "ink" inside `bx` sits in the same place on
+/// both frames, with 1 px of slack: 0..1, the worse of the two directions.
+/// Rendered text keeps its shape while the scene behind it moves, so this
+/// tells whether a caption stayed the same without reading it. Ink is
+/// fill-coloured pixels; with an outline, only those within 2 px of it, so
+/// a pale object passing behind white text is not ink. `None` when either
+/// frame has no ink or ink covers most of the box.
+pub fn ink_match(
+    a: &RgbImage,
+    b: &RgbImage,
+    bx: PixelBox,
+    fill: [u8; 3],
+    outline: Option<[u8; 3]>,
+) -> Option<f64> {
+    let w = (bx.x + bx.w)
+        .min(a.width())
+        .min(b.width())
+        .saturating_sub(bx.x);
+    let h = (bx.y + bx.h)
+        .min(a.height())
+        .min(b.height())
+        .saturating_sub(bx.y);
+    let bx = PixelBox { w, h, ..bx };
+    let ma = ink_mask(a, bx, fill, outline)?;
+    let mb = ink_mask(b, bx, fill, outline)?;
+    Some(covered(&ma, &mb, bx).min(covered(&mb, &ma, bx)))
+}
+
+fn ink_mask(
+    img: &RgbImage,
+    bx: PixelBox,
+    fill: [u8; 3],
+    outline: Option<[u8; 3]>,
+) -> Option<Vec<bool>> {
+    let near = |c: [u8; 3]| {
+        move |x: u32, y: u32| {
+            let p = img.get_pixel(x, y).0;
+            (0..3).map(|i| u32::from(p[i].abs_diff(c[i]))).sum::<u32>() < INK_DISTANCE
+        }
+    };
+    let is_fill = near(fill);
+    let (w, h) = (bx.w as usize, bx.h as usize);
+    let mut mask = Vec::with_capacity(w * h);
+    for y in bx.y..bx.y + bx.h {
+        for x in bx.x..bx.x + bx.w {
+            mask.push(is_fill(x, y));
+        }
+    }
+    if let Some(outline) = outline {
+        let is_outline = near(outline);
+        let rim: Vec<bool> = (bx.y..bx.y + bx.h)
+            .flat_map(|y| (bx.x..bx.x + bx.w).map(move |x| (x, y)))
+            .map(|(x, y)| is_outline(x, y))
+            .collect();
+        let r = OUTLINE_REACH;
+        for y in 0..h {
+            for x in 0..w {
+                if mask[y * w + x] {
+                    mask[y * w + x] = (y.saturating_sub(r)..(y + r + 1).min(h)).any(|ny| {
+                        (x.saturating_sub(r)..(x + r + 1).min(w)).any(|nx| rim[ny * w + nx])
+                    });
+                }
+            }
+        }
+    }
+    let ink = mask.iter().filter(|&&m| m).count();
+    (ink > 0 && (ink as f64) <= INK_MAX_SHARE * mask.len() as f64).then_some(mask)
+}
+
+/// Share of `m`'s ink that has ink in `other` within 1 px.
+fn covered(m: &[bool], other: &[bool], bx: PixelBox) -> f64 {
+    let (w, h) = (bx.w as usize, bx.h as usize);
+    let near = |x: usize, y: usize| {
+        (y.saturating_sub(1)..(y + 2).min(h))
+            .any(|ny| (x.saturating_sub(1)..(x + 2).min(w)).any(|nx| other[ny * w + nx]))
+    };
+    let (mut ink, mut hit) = (0usize, 0usize);
+    for y in 0..h {
+        for x in 0..w {
+            if m[y * w + x] {
+                ink += 1;
+                hit += usize::from(near(x, y));
+            }
+        }
+    }
+    hit as f64 / ink as f64
+}
+
 fn as_f(c: [u8; 3]) -> [f64; 3] {
     c.map(f64::from)
 }
@@ -228,6 +330,81 @@ pub fn caption_colors(img: &RgbImage, bx: PixelBox) -> CaptionColors {
 mod tests {
     use super::*;
     use image::{Rgb, RgbImage};
+
+    /// White strokes with a 2 px black outline at the given x positions,
+    /// over a noisy background whose shade depends on `seed`, like a scene
+    /// moving behind a caption.
+    fn strokes(xs: &[u32], seed: u32) -> RgbImage {
+        let mut img = RgbImage::from_fn(200, 60, |x, y| {
+            // Mid tones only, never mistaken for the black outline.
+            let v = (60 + (x * 7 + y * 13 + seed * 31) % 120) as u8;
+            Rgb([v, v / 2 + 20, 40])
+        });
+        for &x0 in xs {
+            for y in 13..47 {
+                for x in x0.saturating_sub(2)..x0 + 8 {
+                    img.put_pixel(x, y, Rgb([0, 0, 0]));
+                }
+            }
+            for y in 15..45 {
+                for x in x0..x0 + 6 {
+                    img.put_pixel(x, y, Rgb([255, 255, 255]));
+                }
+            }
+        }
+        img
+    }
+
+    const BLACK: Option<[u8; 3]> = Some([0, 0, 0]);
+
+    const WHOLE: PixelBox = PixelBox {
+        x: 0,
+        y: 0,
+        w: 200,
+        h: 60,
+    };
+
+    #[test]
+    fn the_same_text_over_a_changing_background_matches() {
+        let a = strokes(&[20, 50, 90, 140], 1);
+        let b = strokes(&[21, 50, 90, 140], 9);
+        let m = ink_match(&a, &b, WHOLE, [255, 255, 255], BLACK).unwrap();
+        assert!(m > 0.9, "{m}");
+    }
+
+    #[test]
+    fn different_text_in_the_same_place_does_not_match() {
+        let a = strokes(&[20, 50, 90, 140], 1);
+        let b = strokes(&[35, 70, 110, 170], 1);
+        let m = ink_match(&a, &b, WHOLE, [255, 255, 255], BLACK).unwrap();
+        assert!(m < 0.5, "{m}");
+    }
+
+    #[test]
+    fn a_pale_hand_behind_outlined_text_does_not_count_as_ink() {
+        // On the Thai clip a hand passing behind white text added "ink"
+        // and split one caption into many; text ink has its outline nearby.
+        let a = strokes(&[20, 50, 90, 140], 1);
+        let mut b = strokes(&[20, 50, 90, 140], 4);
+        for y in 0..60 {
+            for x in 60..85 {
+                b.put_pixel(x, y, Rgb([250, 248, 240]));
+            }
+        }
+        let m = ink_match(&a, &b, WHOLE, [255, 255, 255], BLACK).unwrap();
+        assert!(m > 0.9, "{m}");
+        let plain = ink_match(&a, &b, WHOLE, [255, 255, 255], None).unwrap();
+        assert!(plain < m, "without the outline the hand counts: {plain}");
+    }
+
+    #[test]
+    fn a_background_the_colour_of_the_text_tells_nothing() {
+        let white = RgbImage::from_pixel(200, 60, Rgb([250, 250, 250]));
+        let a = strokes(&[20, 50], 1);
+        assert_eq!(ink_match(&white, &a, WHOLE, [255, 255, 255], None), None);
+        let bare = strokes(&[], 1);
+        assert_eq!(ink_match(&bare, &a, WHOLE, [255, 255, 255], BLACK), None);
+    }
 
     /// Background, then a block of "text": fill inside a 3 px outline.
     fn caption_image(bg: [u8; 3], fill: [u8; 3], outline: Option<[u8; 3]>) -> (RgbImage, PixelBox) {
@@ -419,5 +596,11 @@ mod tests {
     #[test]
     fn hex_is_uppercase_rrggbb() {
         assert_eq!(hex([255, 230, 0]), "#FFE600");
+    }
+
+    #[test]
+    fn hex_reads_back() {
+        assert_eq!(rgb(&hex([255, 8, 171])), Some([255, 8, 171]));
+        assert_eq!(rgb("white"), None);
     }
 }
