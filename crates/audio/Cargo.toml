@@ -11,6 +11,8 @@ doctor = { path = "../doctor" }
 hound = "3.5"
 ingest = { path = "../ingest" }
 model.workspace = true
+rten = "0.26"
+rten-tensor = "0.26"
 rustfft = "6"
 serde.workspace = true
 serde_json.workspace = true

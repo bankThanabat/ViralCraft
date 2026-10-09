@@ -2,13 +2,18 @@
 
 pub mod bed;
 pub mod rhythm;
+pub mod sfx;
 pub mod words;
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use model::tools::{self, ToolError};
-use model::{Audio, AudioEvent, Fps, MusicSpan, Probe, RationalTime, Tempo, TimeRange, Word};
+use model::{
+    Audio, AudioEvent, Fps, MusicSpan, Probe, RationalTime, SoundEvent, Tempo, TimeRange, Word,
+};
+use rten_tensor::prelude::*;
+use rten_tensor::{NdTensor, Tensor};
 use whisper_rs::{
     DtwMode, DtwModelPreset, DtwParameters, FullParams, SamplingStrategy, WhisperContext,
     WhisperContextParameters,
@@ -16,6 +21,8 @@ use whisper_rs::{
 
 pub const AUDIO_FILE: &str = "audio.json";
 pub const WHISPER_MODEL: &str = "ggml-tiny.en.bin";
+/// Optional sound-effect classifier; see `doctor::MODELS`.
+pub const SFX_MODEL: &str = "yamnet.onnx";
 /// Words closer than this belong to one speech span.
 const SPEECH_GAP_S: f64 = 0.5;
 /// Tempo confidence needed to call a stretch music.
@@ -41,6 +48,8 @@ pub enum AudioError {
     Model(PathBuf),
     #[error("whisper: {0}")]
     Whisper(#[from] whisper_rs::WhisperError),
+    #[error("sound-effect model: {0}")]
+    Sfx(String),
     #[error(transparent)]
     Tool(#[from] ToolError),
 }
@@ -49,8 +58,13 @@ pub enum AudioError {
 pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
     let probe: Probe = read_json(&run_dir.join(ingest::PROBE_FILE))?;
     let rate = probe.rate;
-    let (words, rhythm, beds) = match &probe.audio {
-        None => (Vec::new(), rhythm::analyze(&[], 16_000), Vec::new()),
+    let (words, rhythm, beds, named) = match &probe.audio {
+        None => (
+            Vec::new(),
+            rhythm::analyze(&[], 16_000),
+            Vec::new(),
+            Vec::new(),
+        ),
         Some(info) => {
             let samples = extract_16k_mono(run_dir, &probe.file)?;
             let words = transcribe(&samples, rate, info.offset)?;
@@ -58,10 +72,13 @@ pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
                 words,
                 rhythm::analyze(&samples, 16_000),
                 bed::bed_spans(&samples, 16_000),
+                name_sounds(&samples, rate, info.offset)?,
             )
         }
     };
-    let (words, sounds) = words::split_sound_tags(words);
+    let (words, mut sounds) = words::split_sound_tags(words);
+    sounds.extend(named);
+    sounds.sort_by_key(|s| s.start.value);
     let offset_s = probe.audio.as_ref().map_or(0.0, |a| a.offset.to_seconds());
     let at = |s: f64| RationalTime::from_seconds(s + offset_s, rate);
     let event = |e: &rhythm::Event| AudioEvent {
@@ -105,6 +122,7 @@ pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
         version: 1,
         rate,
         speech: words::speech_spans(&words, SPEECH_GAP_S),
+        transcript: words::transcript(&words, &sounds),
         words,
         tempo: Tempo {
             bpm: rhythm.tempo.bpm,
@@ -173,6 +191,46 @@ pub fn transcribe(
         }
     }
     Ok(words::tokens_to_words(&tokens, rate, offset))
+}
+
+/// Names non-speech sounds with YAMNet when its optional model is
+/// installed; returns nothing when it is not.
+pub fn name_sounds(
+    samples: &[f32],
+    rate: Fps,
+    offset: RationalTime,
+) -> Result<Vec<SoundEvent>, AudioError> {
+    let path = doctor::default_models_dir().join(SFX_MODEL);
+    if !path.exists() || samples.len() < 16_000 {
+        return Ok(Vec::new());
+    }
+    let model = rten::Model::load_file(&path).map_err(|e| AudioError::Sfx(e.to_string()))?;
+    let input: Tensor<f32> = Tensor::from_data(&[samples.len()], samples.to_vec());
+    let output = model
+        .run_one(input.view().into(), None)
+        .map_err(|e| AudioError::Sfx(e.to_string()))?;
+    let scores: NdTensor<f32, 2> = output
+        .try_into()
+        .map_err(|e| AudioError::Sfx(format!("unexpected output: {e:?}")))?;
+    let [frames, classes] = scores.shape();
+    let rows: Vec<Vec<f32>> = (0..frames)
+        .map(|f| (0..classes).map(|c| scores[[f, c]]).collect())
+        .collect();
+
+    let offset_s = offset.to_seconds();
+    Ok(sfx::name_sounds(&rows, &sfx::class_names(), sfx::HOP_S)
+        .into_iter()
+        .map(|n| {
+            let start = RationalTime::from_seconds(n.start + offset_s, rate);
+            let end = RationalTime::from_seconds(n.end + offset_s, rate);
+            SoundEvent {
+                label: n.label,
+                start,
+                duration: RationalTime::from_frames(end.value - start.value, rate),
+                source: "yamnet".to_string(),
+            }
+        })
+        .collect())
 }
 
 /// Reads a 16 kHz mono 16-bit WAV into `[-1, 1]` samples.

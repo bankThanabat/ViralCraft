@@ -12,6 +12,9 @@ pub struct Audio {
     pub rate: Fps,
     /// Transcribed words on the video clock.
     pub words: Vec<Word>,
+    /// Words and named sounds in time order, sounds in brackets:
+    /// `here it goes! [whoosh] [thump]`.
+    pub transcript: String,
     /// Runs of words with gaps under half a second.
     pub speech: Vec<TimeRange>,
     pub tempo: Tempo,
@@ -39,7 +42,7 @@ pub struct SoundEvent {
     pub label: String,
     pub start: RationalTime,
     pub duration: RationalTime,
-    /// Which detector named it, e.g. `whisper`.
+    /// Which detector named it: `whisper` (its own tags) or `yamnet`.
     pub source: String,
 }
 

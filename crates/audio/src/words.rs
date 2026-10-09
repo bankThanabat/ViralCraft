@@ -107,6 +107,37 @@ pub fn split_sound_tags(words: Vec<Word>) -> (Vec<Word>, Vec<SoundEvent>) {
     (kept, sounds)
 }
 
+/// Words and sounds in time order, sounds in brackets as closed captions
+/// write them: `here it goes! [whoosh] [thump]`. A YAMNet sound that
+/// overlaps one of whisper's own tags is the same sound and is left out.
+pub fn transcript(words: &[Word], sounds: &[SoundEvent]) -> String {
+    let overlaps = |a: &SoundEvent, b: &SoundEvent| {
+        a.start.value < b.start.value + b.duration.value
+            && b.start.value < a.start.value + a.duration.value
+    };
+    let mut kept: Vec<&SoundEvent> = sounds
+        .iter()
+        .filter(|s| {
+            s.source == "whisper"
+                || !sounds
+                    .iter()
+                    .any(|w| w.source == "whisper" && overlaps(s, w))
+        })
+        .collect();
+    kept.sort_by_key(|s| s.start.value);
+
+    let mut parts: Vec<String> = Vec::new();
+    let mut next = kept.iter().peekable();
+    for w in words {
+        while let Some(s) = next.next_if(|s| s.start.value < w.start.value) {
+            parts.push(format!("[{}]", s.label));
+        }
+        parts.push(w.text.clone());
+    }
+    parts.extend(next.map(|s| format!("[{}]", s.label)));
+    parts.join(" ")
+}
+
 /// Merges words into speech spans, joining words separated by less than
 /// `max_gap_s` seconds.
 pub fn speech_spans(words: &[Word], max_gap_s: f64) -> Vec<TimeRange> {
@@ -236,6 +267,57 @@ mod tests {
             .map(|s| (s.label.as_str(), s.start.value))
             .collect();
         assert_eq!(labels, [("sighs", 20), ("laughs", 60)]);
+    }
+
+    fn sound(label: &str, start: i64, source: &str) -> SoundEvent {
+        SoundEvent {
+            label: label.into(),
+            start: RationalTime::from_frames(start, FPS30),
+            duration: RationalTime::from_frames(15, FPS30),
+            source: source.into(),
+        }
+    }
+
+    fn word(text: &str, start: i64) -> Word {
+        Word {
+            text: text.into(),
+            start: RationalTime::from_frames(start, FPS30),
+            duration: RationalTime::from_frames(4, FPS30),
+            confidence: 0.9,
+        }
+    }
+
+    #[test]
+    fn sounds_go_into_the_transcript_where_they_happen() {
+        let words = [word("here", 10), word("it", 15), word("goes!", 20)];
+        let sounds = [
+            sound("whoosh", 22, "yamnet"),
+            sound("thump", 30, "yamnet"),
+            sound("sigh", 5, "yamnet"),
+        ];
+        assert_eq!(
+            transcript(&words, &sounds),
+            "[sigh] here it goes! [whoosh] [thump]"
+        );
+    }
+
+    #[test]
+    fn a_sound_heard_by_both_detectors_is_written_once() {
+        let words = [word("okay", 40)];
+        let sounds = [sound("sighs", 20, "whisper"), sound("sigh", 24, "yamnet")];
+        assert_eq!(transcript(&words, &sounds), "[sighs] okay");
+    }
+
+    #[test]
+    fn a_video_with_no_speech_is_just_its_sounds() {
+        assert_eq!(
+            transcript(
+                &[],
+                &[sound("typing", 0, "yamnet"), sound("ding", 40, "yamnet")]
+            ),
+            "[typing] [ding]"
+        );
+        assert_eq!(transcript(&[], &[]), "");
     }
 
     #[test]

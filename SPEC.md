@@ -614,16 +614,21 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
   before the previous word's end. Worst start error on the fixture is 3
   frames (100 ms) at 30 fps, so word-highlight timing is good to about 3
   frames with the tiny model. Decided 2026-10-09 in task 6.
+- **Sound-effect names are optional and go into the transcript.** Google's
+  YAMNet (Apache-2.0, 16 MB, AudioSet classes, run through rten) names
+  non-speech sounds; `doctor --install` asks whether the user wants it.
+  Sounds are written in brackets where they happen, closed-caption style
+  (`here it goes. [whoosh] [thunk]`), in `audio.json`'s `transcript`.
+  YAMNet works in 0.48 s steps; the user asked for this placement rather
+  than frame-exact timing. Speech, singing, music and room-tone classes are
+  ignored, scores under 0.3 dropped. Chosen over EfficientAT (more accurate,
+  PyTorch only) because it runs today; one function wraps it so it can be
+  swapped. On the first real clip it found `[whoosh] [thunk]` on the
+  punchline cut and misnamed a jingle `[car alarm]`. Decided 2026-10-09.
 - **Speed ramps are `unknown` in v1.** Constant per-shot speed is measured;
   ramps are left to the agent and the editor.
 
 ## Open Questions
-
-0. **Naming sound effects.** v1 labels only the sounds whisper tags itself
-   (`[sighs]`, `[laughs]`). Naming typing, whooshes, pops, risers and
-   swipes needs a sound-event classifier, for example YAMNet (521 AudioSet
-   classes) run through `rten`. That adds a model download and is proposed
-   as a task after Phase 2 for the user to approve.
 
 1. **Beat detection quality** on compressed TikTok audio with speech over
    music is unknown. The fixture uses a clean click; a real-video check is

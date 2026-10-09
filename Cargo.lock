@@ -81,6 +81,8 @@ dependencies = [
  "hound",
  "ingest",
  "model",
+ "rten",
+ "rten-tensor",
  "rustfft",
  "serde",
  "serde_json",

@@ -74,5 +74,15 @@ fn cuts_3_click_track_gives_120_bpm_and_beats_every_15_frames() {
     }
     assert_eq!(a.music.len(), 1, "one music span over the click track");
     assert!(a.music[0].beat, "the click track has a beat");
+    if doctor::default_models_dir().join("yamnet.onnx").exists() {
+        assert!(
+            a.sounds
+                .iter()
+                .any(|s| s.source == "yamnet" && s.label == "tick"),
+            "YAMNet hears the clicks as ticks: {:?}",
+            a.sounds
+        );
+        assert!(a.transcript.contains("[tick]"), "{}", a.transcript);
+    }
     assert!(a.words.is_empty());
 }
