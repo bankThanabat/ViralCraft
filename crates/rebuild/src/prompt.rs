@@ -391,12 +391,12 @@ fn sound(d: &mut String, x: &PromptInputs, clips: &[&model::Asset]) {
     if a.music.is_empty() {
         let _ = writeln!(d, "- music: none in the original");
     } else {
-        for m in &a.music {
+        for m in music_runs(&a.music) {
             let _ = writeln!(
                 d,
                 "- music from f{} to f{}{}{}",
-                m.range.start.value,
-                m.range.end_frame(),
+                m.from,
+                m.to,
                 m.level_db
                     .map_or(String::new(), |l| format!(" at about {} dB", num(l))),
                 if m.beat { ", with a steady beat" } else { "" }
@@ -446,6 +446,42 @@ fn sound(d: &mut String, x: &PromptInputs, clips: &[&model::Asset]) {
     let _ = writeln!(d);
 }
 
+/// Music beds closer than this are one bed with quiet moments, for an
+/// editor placing a track.
+const MUSIC_GAP_FRAMES: i64 = 60;
+
+struct MusicRun {
+    from: i64,
+    to: i64,
+    level_db: Option<f64>,
+    beat: bool,
+}
+
+/// Beds joined across short gaps, with the loudest level and any beat.
+fn music_runs(music: &[model::MusicSpan]) -> Vec<MusicRun> {
+    let mut runs: Vec<MusicRun> = Vec::new();
+    for m in music {
+        let (from, to) = (m.range.start.value, m.range.end_frame());
+        match runs.last_mut() {
+            Some(r) if from - r.to <= MUSIC_GAP_FRAMES => {
+                r.to = r.to.max(to);
+                r.level_db = match (r.level_db, m.level_db) {
+                    (Some(a), Some(b)) => Some(a.max(b)),
+                    (a, b) => a.or(b),
+                };
+                r.beat |= m.beat;
+            }
+            _ => runs.push(MusicRun {
+                from,
+                to,
+                level_db: m.level_db,
+                beat: m.beat,
+            }),
+        }
+    }
+    runs
+}
+
 fn your_clips(d: &mut String, x: &PromptInputs) {
     let _ = writeln!(d, "## Your clips");
     let _ = writeln!(d, "From {}.\n", x.assets.folder);
@@ -464,12 +500,22 @@ fn your_clips(d: &mut String, x: &PromptInputs) {
             num(c.rate.as_f64()),
             c.thumbnail
         );
-        let speech = if c.transcript.is_empty() {
-            "no speech".to_string()
+        let speech = if c.words.is_empty() {
+            "none".to_string()
         } else {
             format!("{} ({})", c.transcript, c.language)
         };
-        let _ = writeln!(d, "speech: {speech}\n");
+        let mut sounds: Vec<&str> = Vec::new();
+        for s in &c.sounds {
+            if !sounds.contains(&s.label.as_str()) {
+                sounds.push(&s.label);
+            }
+        }
+        let _ = writeln!(d, "speech: {speech}");
+        if !sounds.is_empty() {
+            let _ = writeln!(d, "sounds: {}", sounds.join(", "));
+        }
+        let _ = writeln!(d);
     }
 }
 
@@ -624,6 +670,37 @@ mod tests {
             "{doc}"
         );
         assert!(doc.contains("clips with music in them: shelf.mp4"));
+    }
+
+    #[test]
+    fn a_bed_with_short_gaps_is_one_music_line() {
+        let r = model::Fps::new(30, 1).unwrap();
+        let bed = |from: i64, to: i64, db: f64| model::MusicSpan {
+            range: model::TimeRange::from_frames(from, to - from, r),
+            level_db: Some(db),
+            beat: false,
+        };
+        // The Thai clip's quiet bed came out as 19 pieces.
+        let runs = music_runs(&[
+            bed(180, 330, -38.4),
+            bed(345, 420, -38.7),
+            bed(3000, 3090, -39.6),
+        ]);
+        let got: Vec<(i64, i64, Option<f64>)> =
+            runs.iter().map(|m| (m.from, m.to, m.level_db)).collect();
+        assert_eq!(got, [(180, 420, Some(-38.4)), (3000, 3090, Some(-39.6))]);
+    }
+
+    #[test]
+    fn a_clip_without_words_has_no_speech_and_lists_its_sounds_once() {
+        let mut silent = assets();
+        let pour = &mut silent.clips[0];
+        pour.words.clear();
+        pour.transcript = "[tick] [tick]".into();
+        let tick = pour.sounds[0].clone();
+        pour.sounds.push(tick);
+        let doc = prompt(&silent, None);
+        assert!(doc.contains("### pour.mp4\n4.500s · 720 x 1280 · 30 fps · thumbnail rebuild/thumbs/pour.jpg\nspeech: none\nsounds: tick\n"), "{doc}");
     }
 
     #[test]

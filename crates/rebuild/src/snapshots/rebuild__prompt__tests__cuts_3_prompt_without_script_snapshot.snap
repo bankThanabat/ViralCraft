@@ -70,10 +70,11 @@ From assets.
 ### pour.mp4
 4.500s · 720 x 1280 · 30 fps · thumbnail rebuild/thumbs/pour.jpg
 speech: first we pour [tick] (en)
+sounds: tick
 
 ### shelf.mp4
 1.500s · 720 x 1280 · 30 fps · thumbnail rebuild/thumbs/shelf.jpg
-speech: no speech
+speech: none
 
 ### shelf-copy.mp4
 same file as shelf.mp4; skip it
