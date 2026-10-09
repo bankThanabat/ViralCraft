@@ -17,5 +17,9 @@ template = { path = "../template" }
 thiserror.workspace = true
 
 [dev-dependencies]
+doctor = { path = "../doctor" }
+image = { version = "0.25", default-features = false, features = ["png"] }
 insta = "1"
+inspect = { path = "../inspect" }
+shots = { path = "../shots" }
 tempfile = "3"

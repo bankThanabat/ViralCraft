@@ -1,0 +1,265 @@
+{
+  "version": 1,
+  "hook": {
+    "type": "text-overlay + product flash",
+    "window": {
+      "start": 0,
+      "duration": 90
+    },
+    "why": "The persistent 'Me if I had a one wish willow:' title sets up a relatable hypothetical before a word is spoken, and a one-second flash of the nostalgic One Wish Willow toy makes the premise instantly recognisable."
+  },
+  "shots": [
+    {
+      "n": 1,
+      "role": "a-roll",
+      "speech": "on-camera",
+      "on_screen": "cartoon office worker at his desk (0.1 s cold open)"
+    },
+    {
+      "n": 2,
+      "role": "insert",
+      "speech": "none",
+      "on_screen": "close-up of the One Wish Willow toy packaging"
+    },
+    {
+      "n": 3,
+      "role": "a-roll",
+      "speech": "on-camera",
+      "on_screen": "the office worker at his desk, gesturing as he lists the conditions of his wish"
+    },
+    {
+      "n": 4,
+      "role": "reveal",
+      "speech": "on-camera",
+      "on_screen": "the wish granted literally: he is now a pampered cat on a cushion, a woman offers him a treat"
+    }
+  ],
+  "captions": [
+    {
+      "id": "c1",
+      "kind": "title",
+      "font_substitute": "Proxima Nova Semibold (TikTok Classic text, black background)",
+      "text_fix": "Me if I had a one wish willow:"
+    },
+    {
+      "id": "c2",
+      "kind": "watermark",
+      "font_substitute": "Fredoka Medium"
+    },
+    {
+      "id": "c3",
+      "kind": "scene-text"
+    },
+    {
+      "id": "c4",
+      "kind": "scene-text"
+    },
+    {
+      "id": "c5",
+      "kind": "scene-text"
+    },
+    {
+      "id": "c6",
+      "kind": "scene-text"
+    },
+    {
+      "id": "c7",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "*ahem*"
+    },
+    {
+      "id": "c8",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "I wish..."
+    },
+    {
+      "id": "c9",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c10",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c11",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c12",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c13",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c14",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c15",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "but I don't wanna ever worry\nabout bills or food..."
+    },
+    {
+      "id": "c16",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "and I want this all"
+    },
+    {
+      "id": "c17",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c18",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c19",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "h@rming anyone..."
+    },
+    {
+      "id": "c20",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c21",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "oh! and it'd be cool if I had\nservants who could do things for me..."
+    },
+    {
+      "id": "c22",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "but only because they WANT to"
+    },
+    {
+      "id": "c23",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c24",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c25",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c26",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c27",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "just find people that would already\nnaturally wanna do things for me!"
+    },
+    {
+      "id": "c28",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c29",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c30",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c31",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c32",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic",
+      "text_fix": "I... think that's everything!"
+    },
+    {
+      "id": "c33",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c34",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    },
+    {
+      "id": "c35",
+      "kind": "caption",
+      "font_substitute": "Poppins ExtraBold Italic"
+    }
+  ],
+  "overlays": [
+    {
+      "id": "o1",
+      "kind": "not an overlay",
+      "description": "the character's arm animating"
+    },
+    {
+      "id": "o2",
+      "kind": "not an overlay",
+      "description": "the woman's hand and treat animating"
+    }
+  ],
+  "look": {
+    "name": "flat pastel cartoon",
+    "match_by": "flat vector illustration, no grade: cream #F0E8DD walls, dusty pink floor, coral #E4576B dialogue captions; switch to a lilac #DEB3E0 background for the punchline scene"
+  },
+  "story_beats": [
+    {
+      "start": 0,
+      "duration": 34,
+      "label": "hook: title and product flash"
+    },
+    {
+      "start": 34,
+      "duration": 443,
+      "label": "setup: the wish (no work, but a nice house and no bills)"
+    },
+    {
+      "start": 477,
+      "duration": 868,
+      "label": "escalation: conditions pile up (legally, no harm, willing servants)"
+    },
+    {
+      "start": 1345,
+      "duration": 205,
+      "label": "wind-up: okay... here it goes! [whoosh]"
+    },
+    {
+      "start": 1550,
+      "duration": 141,
+      "label": "punchline: the wish is granted literally, he is a pampered cat"
+    }
+  ],
+  "format_name": "'Me if I had...' wish monologue with a literal-twist punchline",
+  "overrides": []
+}

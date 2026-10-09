@@ -1,0 +1,110 @@
+---
+name: viralcraft
+description: Turns a viral short-form video (TikTok, Reels, Shorts) into a blind-rebuild-quality edit spec and a reusable format template, then optionally rebuilds that format from the user's own clips. Use when the user says "analyze this viral video", "copy this format", "break down this edit", "what makes this video work", "make a template from this video", or drops a video in ./inbox/.
+---
+
+# ViralCraft
+
+The `viralcraft` CLI measures everything that can be measured: cuts, captions
+(text, style, position, timing), camera moves, look, words, music, sounds.
+You add the judgement it cannot make: what each shot is, what kind each caption
+is, the hook, the story, the look's name. Then the CLI writes the finished
+EDIT-SPEC.md, captions, timeline and TEMPLATE.md.
+
+Every `viralcraft` command prints exactly one JSON line on stdout
+(`{"command": ..., "ok": ...}`), also on failure. Read that line; progress goes
+to stderr. Never edit measured files (`*.json` other than `judgement.json`).
+
+## 0. The binary
+
+Run `viralcraft --version`. If it is missing and this is the ViralCraft repo,
+build it with `cargo install --path apps/viralcraft`. Otherwise ask the user
+where it is installed.
+
+## 1. Tools and models
+
+Run `viralcraft doctor`. When `ok` is false, show the user each missing item
+and its install command from `items[].fix`, and run the commands only after
+they say yes. Never install without asking.
+
+Optional items (`optional: true`) are features, not failures. Offer them once:
+- sound-effect names (YAMNet, 16 MB)
+- multilingual speech, for videos not in English: offer the three sizes as
+  one choice, small (0.5 GB, good), medium (1.5 GB, better) or large
+  (3.1 GB, best), and download only the one the user picks. Without one,
+  non-English speech comes out as wrong English words.
+
+## 2. Analyze
+
+Run `viralcraft analyze`. It takes the only video in `./inbox/`. If the JSON
+error says there is no video or more than one, ask the user which file and run
+`viralcraft analyze <file>`. Results land in `./out/<video name>/`
+(`run_dir` in the JSON). Long videos take minutes; let it finish.
+
+## 3. Review: write judgement.json
+
+Read `<run_dir>/EDIT-SPEC.md`. Every `TODO:` is yours, and its
+`## Judgement checklist` lists them all. Look at frames before deciding:
+`<run_dir>/frames/f00042.jpg` is frame 42 (720 px on the short side). Look at
+the middle frame of each shot, the middle frame of each caption, and every
+frame of the hook window. Write `<run_dir>/judgement.json`.
+
+See `references/judgement-guide.md` for each field: what to look at and how
+to decide. `examples/judgement.json` is a finished example from a real clip.
+
+Rules that matter most:
+- **Caption text.** OCR reads the Latin alphabet only. For Thai, Japanese,
+  Chinese, Korean, Arabic and similar scripts it returns confident garbage
+  ("onIGS" for "แจกสูตร"). Read the real words from the frame and put them in
+  `text_fix`, line breaks as `\n`. Also fix Latin OCR typos the same way.
+  Never take caption text from the transcript: many videos have no speech,
+  and creators spell on purpose.
+- **Scene text** (signs, packaging, logos in the shot) is `scene-text`; it is
+  removed from the spec. The creator's handle is `watermark`.
+- **One caption, many ids.** If two ids are the same caption on screen (a
+  sparkle or a hand moving behind it split it), judge both the same way.
+- Every caption that is not `scene-text` needs a `font_substitute`: a common
+  font that looks closest (weight, width, italic, rounded or not).
+- Times are frame numbers at the video's rate, as in EDIT-SPEC.md.
+
+## 4. Finalize
+
+Run `viralcraft finalize <run_dir>`. If `ok` is false, `missing` lists the
+fields still empty; fill them and run it again. When it passes, it writes the
+finished EDIT-SPEC.md, captions.vtt, captions.ass, timeline.otio and a draft
+TEMPLATE.md.
+
+## 5. Template
+
+Open `<run_dir>/TEMPLATE.md` and replace each `TODO`:
+- **fill with**, per slot: what footage goes there, written so it works for
+  any topic ("the finished product, close and centred", not "matcha latte").
+- **Rules**: the patterns an editor must keep, drawn from the observed
+  timings: cut rhythm, caption placement and length, what the hook does,
+  when music enters, recurring sound effects. Say which are strict and which
+  are loose.
+
+`finalize` never overwrites a TEMPLATE.md that has no `TODO:` left.
+
+Tell the user what the format is in two or three plain sentences and where
+the files are.
+
+## 6. Optional: rebuild with the user's clips
+
+Ask whether they want this format rebuilt with their own footage. If yes:
+1. `viralcraft assets <run_dir>` reads the clips in `./assets/`. If the JSON
+   error says there are none, ask the user for the folder and pass
+   `--assets <folder>`. Clips are only read, never changed. If a clip has
+   `duplicate_of`, tell the user it is a copy.
+2. Ask for a script: the caption lines they want, one per line. If they give
+   one, save it as `<run_dir>/rebuild/script.txt` and pass `--script`.
+3. `viralcraft prompt <run_dir> [--script <file>]` writes
+   `<run_dir>/rebuild/REBUILD-PROMPT.md`.
+4. Hand the prompt to an editor skill. With FilmCraft, use the
+   `viralcraft-filmcraft` skill. Without an editor skill, give the user the
+   prompt's path.
+
+## 7. Clean up
+
+`frames/` and `source.cfr.mp4` are large. Once the user is done, offer
+`viralcraft clean <run_dir>`.

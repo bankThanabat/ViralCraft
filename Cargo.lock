@@ -790,12 +790,16 @@ name = "rebuild"
 version = "0.1.0"
 dependencies = [
  "audio",
+ "doctor",
  "editspec",
+ "image",
  "ingest",
+ "inspect",
  "insta",
  "model",
  "serde_json",
  "sha2",
+ "shots",
  "tempfile",
  "template",
  "thiserror",
