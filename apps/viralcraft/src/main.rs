@@ -93,8 +93,9 @@ enum Command {
         /// The approved lines, one per caption, in order.
         #[arg(long)]
         script: PathBuf,
-        /// say (free, the system's own voices), openai or elevenlabs (your
-        /// own key in OPENAI_API_KEY or ELEVENLABS_API_KEY).
+        /// say (free, the system's own voices); or openai, elevenlabs,
+        /// minimax or qwen with your own key in OPENAI_API_KEY,
+        /// ELEVENLABS_API_KEY, MINIMAX_API_KEY or DASHSCOPE_API_KEY.
         #[arg(long, default_value = "say")]
         engine: String,
         #[arg(long)]

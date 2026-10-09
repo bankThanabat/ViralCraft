@@ -16,16 +16,19 @@ account.
 
 ## Decision
 `viralcraft voiceover` speaks the user's approved script, one file per
-caption, with the engine the user picks: `say` by default, or `openai` /
-`elevenlabs` with the user's own key from `OPENAI_API_KEY` /
-`ELEVENLABS_API_KEY`. The key reaches curl on stdin and is never written
+caption, with the engine the user picks: `say` by default, or a cloud
+voice with the user's own key: `openai`, `elevenlabs` (US), `minimax`,
+`qwen` (China), from `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`,
+`MINIMAX_API_KEY` or `DASHSCOPE_API_KEY`. The user asked for Chinese labs
+to be offered alongside the US ones. The key reaches curl on stdin and is never written
 to a file, logged, or put on a command line. Only the script text is sent.
 The agent never asks for a key in chat. Models and voices are flags, so a
 retired model is a flag change.
 
 ## Alternatives considered
 - **Only `say`**: no account needed, but too robotic for posting.
-- **One built-in cloud provider**: simpler, but ties users to one vendor.
+- **One built-in cloud provider**: simpler, but ties users to one vendor
+  and one country's services.
 - **Script only, the user records**: still possible (skip the voiceover
   and record over the rebuild), but not what the user asked for.
 

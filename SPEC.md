@@ -88,7 +88,8 @@ viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
 viralcraft assets <RUN_DIR> [--assets DIR]   # optional rebuild: read the user's clips
 viralcraft prompt <RUN_DIR> [--script FILE] [--no-captions]
                                         # optional rebuild: REBUILD-PROMPT.md
-viralcraft voiceover <RUN_DIR> --script FILE [--engine say|openai|elevenlabs] [--voice V] [--model M]
+viralcraft voiceover <RUN_DIR> --script FILE [--engine say|openai|elevenlabs|minimax|qwen]
+                                [--voice V] [--model M]
                                         # optional rebuild: AI voice per caption
 viralcraft clean <RUN_DIR>              # delete frames/ and source.cfr.mp4
 viralcraft ingest [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
@@ -508,10 +509,13 @@ viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnosti
   caption, the user approves it, and `viralcraft voiceover` speaks each
   line into `rebuild/voiceover/line-NN.wav` with the engine the user picks:
   `say` (the system's own voices, free, offline; Kanya for Thai) or a cloud
-  voice with the user's own key (`openai`: gpt-4o-mini-tts, voice marin;
-  `elevenlabs`: eleven_v3, which has Thai). Keys come from
-  `OPENAI_API_KEY` / `ELEVENLABS_API_KEY` and reach curl on stdin, never
-  its command line. `voiceover.json` records each line's caption, start
+  voice with the user's own key: `openai` (gpt-4o-mini-tts, voice marin),
+  `elevenlabs` (eleven_v3, which has Thai), `minimax` (speech-2.8-hd, Thai
+  among its languages; the audio comes back as hex inside JSON) or `qwen`
+  (qwen3-tts-flash on Alibaba Model Studio's Singapore endpoint, no Thai
+  setting; the audio comes back as a link good for a day). Keys come from
+  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `MINIMAX_API_KEY` or
+  `DASHSCOPE_API_KEY` and reach curl on stdin, never its command line. `voiceover.json` records each line's caption, start
   frame, length and whether it ends before the next caption; the prompt
   places the lines and uses their text as the captions, and refuses a
   voiceover made from a different script.

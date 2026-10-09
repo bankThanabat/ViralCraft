@@ -109,12 +109,15 @@ Ask whether they want this format rebuilt with their own footage. If yes:
 3. No script, and no clip has speech (`words` is 0 for every clip in the
    assets JSON)? Then there is nothing to caption from. Ask the user to
    choose:
-   - **AI voiceover.** Ask which voice: `say` (free, the computer's own
-     voices, a bit robotic; Thai and English on a Mac), `openai` or
-     `elevenlabs` (natural voices, the user's own account and key, a small
-     cost per video). For a cloud voice the user puts their key in
-     `OPENAI_API_KEY` or `ELEVENLABS_API_KEY` in the shell that runs the
-     CLI. Never ask them to paste a key into the chat. Draft one line per
+   - **AI voiceover.** Ask which voice. `say` is free: the computer's own
+     voices, a bit robotic; Thai and English on a Mac. The cloud voices
+     sound natural and use the user's own account and key, at a small cost
+     per video: `openai` and `elevenlabs` (US), `minimax` and `qwen`
+     (China). For Thai, `minimax` and `elevenlabs` list it; `qwen` does
+     not. The user puts the key in `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`,
+     `MINIMAX_API_KEY` or `DASHSCOPE_API_KEY` (Qwen, Alibaba Model Studio)
+     in the shell that runs the CLI. Never ask them to paste a key into
+     the chat. Draft one line per
      caption in the original's language, voice and length, short enough to
      say before the next caption. Show the lines and wait for approval.
      Save them as `<run_dir>/rebuild/script.txt` and run

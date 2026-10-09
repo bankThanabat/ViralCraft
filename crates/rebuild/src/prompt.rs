@@ -344,7 +344,7 @@ fn captions(
                 "Text: no script and no speech in the clips. Stop and ask the user which they want:\n\
                  - an AI voiceover: draft one line per caption below, in the voice and length of the \
                  original, get the user's approval, save it as a script and run \
-                 `viralcraft voiceover <run_dir> --script <file> --engine <say|openai|elevenlabs>`, \
+                 `viralcraft voiceover <run_dir> --script <file> --engine <say|openai|elevenlabs|minimax|qwen>`, \
                  then make this prompt again with `--script <file>`\n\
                  - no captions: make this prompt again with `--no-captions`\n"
             );
@@ -847,7 +847,7 @@ mod tests {
         let doc = prompt(&silent, None);
         assert!(doc.contains("an AI voiceover"), "{doc}");
         assert!(doc.contains(
-            "viralcraft voiceover <run_dir> --script <file> --engine <say|openai|elevenlabs>"
+            "viralcraft voiceover <run_dir> --script <file> --engine <say|openai|elevenlabs|minimax|qwen>"
         ));
         assert!(doc.contains("no captions: make this prompt again with `--no-captions`"));
     }

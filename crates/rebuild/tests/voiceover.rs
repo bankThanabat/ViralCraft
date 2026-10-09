@@ -77,6 +77,18 @@ fn elevenlabs_speaks_one_file_per_caption() {
     speak(Engine::ElevenLabs);
 }
 
+#[test]
+#[ignore = "needs MINIMAX_API_KEY; costs a fraction of a cent"]
+fn minimax_speaks_one_file_per_caption() {
+    speak(Engine::MiniMax);
+}
+
+#[test]
+#[ignore = "needs DASHSCOPE_API_KEY (Alibaba Model Studio, Singapore region)"]
+fn qwen_speaks_one_file_per_caption() {
+    speak(Engine::Qwen);
+}
+
 fn which(tool: &str) -> bool {
     std::process::Command::new("which")
         .arg(tool)

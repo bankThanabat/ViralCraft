@@ -21,7 +21,7 @@ const VOICE_DIR: &str = "voiceover";
 
 #[derive(Debug, thiserror::Error)]
 pub enum VoiceError {
-    #[error("unknown voice engine {0:?}: use say, openai or elevenlabs")]
+    #[error("unknown voice engine {0:?}: use say, openai, elevenlabs, minimax or qwen")]
     Engine(String),
     #[error("{0} is not set: put your own API key in it, or use --engine say")]
     NoKey(&'static str),
@@ -56,6 +56,10 @@ pub enum Engine {
     Say,
     OpenAi,
     ElevenLabs,
+    /// MiniMax (Hailuo voices), China. Speaks Thai.
+    MiniMax,
+    /// Alibaba's Qwen-TTS through Model Studio, China. No Thai setting.
+    Qwen,
 }
 
 impl Engine {
@@ -64,6 +68,8 @@ impl Engine {
             "say" => Ok(Engine::Say),
             "openai" => Ok(Engine::OpenAi),
             "elevenlabs" => Ok(Engine::ElevenLabs),
+            "minimax" => Ok(Engine::MiniMax),
+            "qwen" => Ok(Engine::Qwen),
             other => Err(VoiceError::Engine(other.to_string())),
         }
     }
@@ -73,6 +79,8 @@ impl Engine {
             Engine::Say => "say",
             Engine::OpenAi => "openai",
             Engine::ElevenLabs => "elevenlabs",
+            Engine::MiniMax => "minimax",
+            Engine::Qwen => "qwen",
         }
     }
 
@@ -82,6 +90,8 @@ impl Engine {
             Engine::Say => None,
             Engine::OpenAi => Some("OPENAI_API_KEY"),
             Engine::ElevenLabs => Some("ELEVENLABS_API_KEY"),
+            Engine::MiniMax => Some("MINIMAX_API_KEY"),
+            Engine::Qwen => Some("DASHSCOPE_API_KEY"),
         }
     }
 
@@ -92,6 +102,8 @@ impl Engine {
             Engine::Say => "",
             Engine::OpenAi => "gpt-4o-mini-tts",
             Engine::ElevenLabs => "eleven_v3",
+            Engine::MiniMax => "speech-2.8-hd",
+            Engine::Qwen => "qwen3-tts-flash",
         }
     }
 
@@ -104,6 +116,9 @@ impl Engine {
             Engine::OpenAi => "marin",
             // The voice in ElevenLabs' API reference example.
             Engine::ElevenLabs => "JBFqnCBsd6RMkjVDRZzb",
+            // The voices in the providers' API reference examples.
+            Engine::MiniMax => "English_expressive_narrator",
+            Engine::Qwen => "Cherry",
         }
     }
 }
@@ -143,6 +158,88 @@ pub fn request(engine: Engine, model: &str, voice: &str, text: &str, key: &str) 
             ],
             body: json!({ "text": text, "model_id": model }),
         }),
+        Engine::MiniMax => Some(Request {
+            url: "https://api.minimax.io/v1/t2a_v2".to_string(),
+            headers: vec![
+                format!("Authorization: Bearer {key}"),
+                "Content-Type: application/json".to_string(),
+            ],
+            body: json!({
+                "model": model,
+                "text": text,
+                "voice_setting": { "voice_id": voice },
+                "audio_setting": { "format": "wav", "sample_rate": 44100, "channel": 1 },
+                "language_boost": "auto",
+                "output_format": "hex"
+            }),
+        }),
+        Engine::Qwen => Some(Request {
+            url: "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation".to_string(),
+            headers: vec![
+                format!("Authorization: Bearer {key}"),
+                "Content-Type: application/json".to_string(),
+            ],
+            body: json!({
+                "model": model,
+                "input": { "text": text, "voice": voice, "language_type": "Auto" }
+            }),
+        }),
+    }
+}
+
+/// What a service's reply holds.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unwrapped {
+    /// The audio file itself.
+    Bytes(Vec<u8>),
+    /// A link the audio must be fetched from.
+    Fetch(String),
+}
+
+/// The audio in a successful reply. OpenAI and ElevenLabs return the file;
+/// MiniMax wraps it as hex in JSON; Qwen returns a link good for a day.
+pub fn unwrap_audio(engine: Engine, reply: &[u8]) -> Result<Unwrapped, VoiceError> {
+    let fail = |detail: String| VoiceError::Speech {
+        engine: engine.name(),
+        detail,
+    };
+    let parse = || -> Result<Value, VoiceError> {
+        serde_json::from_slice(reply).map_err(|e| fail(format!("unreadable reply: {e}")))
+    };
+    match engine {
+        Engine::Say | Engine::OpenAi | Engine::ElevenLabs => Ok(Unwrapped::Bytes(reply.to_vec())),
+        Engine::MiniMax => {
+            let v = parse()?;
+            let code = v["base_resp"]["status_code"].as_i64().unwrap_or(-1);
+            if code != 0 {
+                return Err(fail(format!(
+                    "{} ({code})",
+                    v["base_resp"]["status_msg"].as_str().unwrap_or("error")
+                )));
+            }
+            let hex = v["data"]["audio"]
+                .as_str()
+                .ok_or_else(|| fail("no audio in the reply".to_string()))?;
+            let bytes = (0..hex.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(hex.get(i..i + 2).unwrap_or("zz"), 16))
+                .collect::<Result<Vec<u8>, _>>()
+                .map_err(|_| fail("audio is not hex".to_string()))?;
+            Ok(Unwrapped::Bytes(bytes))
+        }
+        Engine::Qwen => {
+            let v = parse()?;
+            match v["output"]["audio"]["url"].as_str() {
+                Some(url) => Ok(Unwrapped::Fetch(url.to_string())),
+                None => Err(fail(format!(
+                    "{} ({})",
+                    v["message"]
+                        .as_str()
+                        .unwrap_or("no audio link in the reply"),
+                    v["code"].as_str().unwrap_or("?")
+                ))),
+            }
+        }
     }
 }
 
@@ -346,7 +443,15 @@ fn speak(
             ),
         });
     }
-    Ok(())
+    let reply = fs::read(out).map_err(io_err(out))?;
+    match unwrap_audio(engine, &reply)? {
+        Unwrapped::Bytes(bytes) => fs::write(out, bytes).map_err(io_err(out)),
+        Unwrapped::Fetch(url) => {
+            // The link needs no key.
+            tools::run("curl", &["-sS", "--fail", "-o", path_str(out), &url])?;
+            Ok(())
+        }
+    }
 }
 
 #[cfg(test)]
@@ -399,6 +504,92 @@ mod tests {
         assert!(r.headers.contains(&"xi-api-key: xk".to_string()));
         assert_eq!(r.body, json!({"text":"hi","model_id":"eleven_v3"}));
         assert!(request(Engine::Say, "", "Kanya", "hi", "").is_none());
+    }
+
+    #[test]
+    fn minimax_request_shape() {
+        let r = request(
+            Engine::MiniMax,
+            "speech-2.8-hd",
+            "English_expressive_narrator",
+            "สวัสดี",
+            "mk",
+        )
+        .unwrap();
+        assert_eq!(r.url, "https://api.minimax.io/v1/t2a_v2");
+        assert!(r.headers.contains(&"Authorization: Bearer mk".to_string()));
+        assert_eq!(
+            r.body,
+            json!({
+                "model": "speech-2.8-hd",
+                "text": "สวัสดี",
+                "voice_setting": {"voice_id": "English_expressive_narrator"},
+                "audio_setting": {"format": "wav", "sample_rate": 44100, "channel": 1},
+                "language_boost": "auto",
+                "output_format": "hex"
+            })
+        );
+    }
+
+    #[test]
+    fn qwen_request_shape() {
+        let r = request(Engine::Qwen, "qwen3-tts-flash", "Cherry", "hello", "ds").unwrap();
+        assert_eq!(
+            r.url,
+            "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation"
+        );
+        assert!(r.headers.contains(&"Authorization: Bearer ds".to_string()));
+        assert_eq!(
+            r.body,
+            json!({"model": "qwen3-tts-flash", "input": {"text": "hello", "voice": "Cherry", "language_type": "Auto"}})
+        );
+    }
+
+    #[test]
+    fn chinese_engines_need_their_own_keys_and_models() {
+        assert_eq!(Engine::parse("MiniMax").unwrap(), Engine::MiniMax);
+        assert_eq!(Engine::parse("qwen").unwrap(), Engine::Qwen);
+        assert_eq!(Engine::MiniMax.key_var(), Some("MINIMAX_API_KEY"));
+        assert_eq!(Engine::Qwen.key_var(), Some("DASHSCOPE_API_KEY"));
+        assert_eq!(Engine::MiniMax.default_model(), "speech-2.8-hd");
+        assert_eq!(Engine::Qwen.default_model(), "qwen3-tts-flash");
+    }
+
+    #[test]
+    fn minimax_audio_is_hex_inside_json() {
+        // "RIFF" as hex, the start of any WAV file.
+        let body = json!({"data": {"audio": "52494646", "status": 2}, "base_resp": {"status_code": 0, "status_msg": "success"}});
+        assert_eq!(
+            unwrap_audio(Engine::MiniMax, body.to_string().as_bytes()).unwrap(),
+            Unwrapped::Bytes(b"RIFF".to_vec())
+        );
+        let bad = json!({"base_resp": {"status_code": 1004, "status_msg": "invalid api key"}});
+        let err = unwrap_audio(Engine::MiniMax, bad.to_string().as_bytes()).unwrap_err();
+        assert!(err.to_string().contains("invalid api key"), "{err}");
+    }
+
+    #[test]
+    fn qwen_audio_is_a_link_to_fetch() {
+        let body = json!({"output": {"finish_reason": "stop", "audio": {"url": "https://x.example/a.wav", "data": ""}}});
+        assert_eq!(
+            unwrap_audio(Engine::Qwen, body.to_string().as_bytes()).unwrap(),
+            Unwrapped::Fetch("https://x.example/a.wav".to_string())
+        );
+        let bad = json!({"code": "InvalidApiKey", "message": "Invalid API-key provided."});
+        let err = unwrap_audio(Engine::Qwen, bad.to_string().as_bytes()).unwrap_err();
+        assert!(err.to_string().contains("Invalid API-key"), "{err}");
+    }
+
+    #[test]
+    fn file_engines_pass_the_bytes_through() {
+        assert_eq!(
+            unwrap_audio(Engine::OpenAi, b"RIFF").unwrap(),
+            Unwrapped::Bytes(b"RIFF".to_vec())
+        );
+        assert_eq!(
+            unwrap_audio(Engine::ElevenLabs, b"ID3").unwrap(),
+            Unwrapped::Bytes(b"ID3".to_vec())
+        );
     }
 
     #[test]
