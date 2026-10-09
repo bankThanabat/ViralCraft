@@ -1,0 +1,21 @@
+[package]
+name = "editspec"
+description = "Writes EDIT-SPEC.md from the measurements in a run directory"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+audio = { path = "../audio" }
+ingest = { path = "../ingest" }
+inspect = { path = "../inspect" }
+model.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+shots = { path = "../shots" }
+thiserror.workspace = true
+
+[dev-dependencies]
+insta = "1"
+tempfile = "3"

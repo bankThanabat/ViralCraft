@@ -1,0 +1,109 @@
+---
+source: crates/editspec/src/render.rs
+expression: render(&cuts3())
+---
+# Edit spec: cuts-3.mp4
+
+## Source
+duration: 6.000s (f180) · 30/1 fps · 1080x1920 (9:16)
+audio: 48 kHz, 1 ch, starts 0 frames after video
+safe zone: tiktok-2026-conservative (UI bands: top 0.08, right 0.15, bottom 0.17, left 0.06 of the frame)
+
+## Hook  <!-- judgement -->
+type: TODO: text-overlay | talking-head | pattern-interrupt | question | ...
+window: TODO: the opening frames that make a viewer stop, e.g. 0.000s (f0) to 1.800s (f54)
+why it works: TODO: one or two sentences
+
+## Shots
+| # | in | out | dur | role | camera | transition in |
+|---|----|-----|-----|------|--------|---------------|
+| 1 | f0 | f60 | 2.000s | TODO | unknown | start |
+| 2 | f60 | f120 | 2.000s | TODO | unknown | cut |
+| 3 | f120 | f180 | 2.000s | TODO | unknown | cut |
+
+### Shot 1  (0.000s (f0) to 2.000s (f60))
+on screen: TODO: what the viewer sees  <!-- judgement -->
+role: TODO: A-roll | B-roll | insert | title card  <!-- judgement -->
+speech: TODO: on-camera | voiceover | none  <!-- judgement -->
+camera: unknown · confidence 0.00
+framing: unknown
+speed: unknown (v1 does not measure retiming)
+look: luma mean 0.16 · dominant #1E2A38 #B1B4B6 #373E46
+transition out: cut at 2.000s (f60)
+
+### Shot 2  (2.000s (f60) to 4.000s (f120))
+on screen: TODO: what the viewer sees  <!-- judgement -->
+role: TODO: A-roll | B-roll | insert | title card  <!-- judgement -->
+speech: TODO: on-camera | voiceover | none  <!-- judgement -->
+camera: unknown · confidence 0.00
+framing: unknown
+speed: unknown (v1 does not measure retiming)
+look: luma mean 0.67 · dominant #C8AA6C #AF9E7E #AF9664
+transition out: cut at 4.000s (f120)
+
+### Shot 3  (4.000s (f120) to 6.000s (f180))
+on screen: TODO: what the viewer sees  <!-- judgement -->
+role: TODO: A-roll | B-roll | insert | title card  <!-- judgement -->
+speech: TODO: on-camera | voiceover | none  <!-- judgement -->
+camera: unknown · confidence 0.00
+framing: unknown
+speed: unknown (v1 does not measure retiming)
+look: luma mean 0.41 · dominant #2D7E32 #8BA18B #4B7A4D
+transition out: end of video
+
+## Captions
+style C1: font unknown (TODO: substitute) · ~104 px · fill #FEFFFF · outline #000104 · box none · uppercase
+
+| id | style | in | out | text | anchor (x, y) | size | animation | safe zone | kind |
+|----|-------|----|-----|------|---------------|------|-----------|-----------|------|
+| c1 | C1 | f0 | f60 | ONE | an8 (0.50, 0.18) | 0.19×0.04 | none | inside | TODO |
+| c2 | C1 | f60 | f120 | TWO | an5 (0.50, 0.50) | 0.21×0.05 | none | inside | TODO |
+| c3 | C1 | f120 | f180 | THREE | an2 (0.50, 0.80) | 0.30×0.04 | none | inside | TODO |
+
+kind is judgement: caption | title | watermark | scene-text  <!-- judgement -->
+
+## Overlays
+none detected
+
+## Transitions
+none: every shot change is a hard cut
+
+## Sound
+tempo: 120 bpm (confidence 0.99) · 12 beats · cuts on beat: 2 of 2 within ±2 frames
+speech: none
+gain and fades: unknown (v1 does not measure mix levels per track)
+
+| music in | out | bed level | steady beat |
+|----------|-----|-----------|-------------|
+| f15 | f180 | unknown | yes |
+
+| sound | in | out | named by | lands on |
+|-------|----|-----|----------|----------|
+| tick | f14 | f43 | yamnet | nothing within 0.5 s |
+
+transcript:
+> [tick]
+
+## Look
+measured: dominant #1E2A38 (0.33) #C8AA6C (0.33) #2D7E32 (0.33) · luma mean 0.41, min 0.16, max 0.67 · saturation 0.52 · warmth +0.08
+named: TODO: e.g. teal-orange, lifted blacks  <!-- judgement -->
+match by: TODO: how to grade new footage to this look  <!-- judgement -->
+
+## Story beats  <!-- judgement -->
+TODO: numbered beats with frame ranges, e.g. `1. f0–f54 hook: claim`
+
+## A-roll / B-roll map  <!-- judgement -->
+TODO: which shots are A-roll (the main subject) and which B-roll (cutaways)
+
+## Judgement checklist
+- [ ] hook
+- [ ] shot 1: on screen, role, speech
+- [ ] shot 2: on screen, role, speech
+- [ ] shot 3: on screen, role, speech
+- [ ] caption c1 kind (caption | title | watermark | scene-text) and font substitute
+- [ ] caption c2 kind (caption | title | watermark | scene-text) and font substitute
+- [ ] caption c3 kind (caption | title | watermark | scene-text) and font substitute
+- [ ] look name and match-by notes
+- [ ] story beats
+- [ ] A-roll / B-roll map
+- [ ] format name

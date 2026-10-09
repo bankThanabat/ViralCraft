@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "original": "tests/fixtures/cuts-3.mp4",
+  "file": "source.cfr.mp4",
+  "rate": {
+    "num": 30,
+    "den": 1
+  },
+  "frames": 180,
+  "width": 1080,
+  "height": 1920,
+  "aspect": "9:16",
+  "was_vfr": false,
+  "audio": {
+    "sample_rate": 48000,
+    "channels": 1,
+    "offset": {
+      "value": 0,
+      "rate": {
+        "num": 30,
+        "den": 1
+      }
+    }
+  },
+  "safe_zone": {
+    "profile": "tiktok-2026-conservative",
+    "top": 0.078125,
+    "right": 0.1527777777777778,
+    "bottom": 0.16666666666666666,
+    "left": 0.05555555555555555
+  }
+}

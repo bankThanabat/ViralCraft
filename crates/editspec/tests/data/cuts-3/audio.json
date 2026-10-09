@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "rate": {
+    "num": 30,
+    "den": 1
+  },
+  "words": [],
+  "transcript": "[tick]",
+  "speech": [],
+  "tempo": {
+    "bpm": 119.99217311012745,
+    "confidence": 0.9886285674314602
+  },
+  "beats": [
+    {
+      "time": {
+        "value": 15,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884847038529387
+    },
+    {
+      "time": {
+        "value": 30,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884992714414365
+    },
+    {
+      "time": {
+        "value": 45,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.98849599571894
+    },
+    {
+      "time": {
+        "value": 60,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884992714414365
+    },
+    {
+      "time": {
+        "value": 75,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884916882484949
+    },
+    {
+      "time": {
+        "value": 90,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9886285674314602
+    },
+    {
+      "time": {
+        "value": 105,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884829705933336
+    },
+    {
+      "time": {
+        "value": 120,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884240819717149
+    },
+    {
+      "time": {
+        "value": 135,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884829705933336
+    },
+    {
+      "time": {
+        "value": 150,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884161734974833
+    },
+    {
+      "time": {
+        "value": 165,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9884829705933336
+    },
+    {
+      "time": {
+        "value": 180,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.2965885702294381
+    }
+  ],
+  "onsets": [
+    {
+      "time": {
+        "value": 15,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9998544816695969
+    },
+    {
+      "time": {
+        "value": 30,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9998692168178392
+    },
+    {
+      "time": {
+        "value": 45,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9998659034172311
+    },
+    {
+      "time": {
+        "value": 60,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9998692168178392
+    },
+    {
+      "time": {
+        "value": 75,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9998615464012729
+    },
+    {
+      "time": {
+        "value": 90,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 1.0
+    },
+    {
+      "time": {
+        "value": 105,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9998527284736421
+    },
+    {
+      "time": {
+        "value": 120,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9997931625015889
+    },
+    {
+      "time": {
+        "value": 135,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9998527284736421
+    },
+    {
+      "time": {
+        "value": 150,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9997851630622725
+    },
+    {
+      "time": {
+        "value": 165,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "confidence": 0.9998527284736421
+    }
+  ],
+  "music": [
+    {
+      "range": {
+        "start": {
+          "value": 15,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        },
+        "duration": {
+          "value": 165,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        }
+      },
+      "level_db": null,
+      "beat": true
+    }
+  ],
+  "sounds": [
+    {
+      "label": "tick",
+      "start": {
+        "value": 14,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "duration": {
+        "value": 29,
+        "rate": {
+          "num": 30,
+          "den": 1
+        }
+      },
+      "source": "yamnet"
+    }
+  ]
+}

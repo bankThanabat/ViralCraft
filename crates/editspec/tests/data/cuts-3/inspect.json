@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "rate": {
+    "num": 30,
+    "den": 1
+  },
+  "captions": [
+    {
+      "id": "c1",
+      "range": {
+        "start": {
+          "value": 0,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        },
+        "duration": {
+          "value": 60,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        }
+      },
+      "text": "ONE",
+      "lines": [
+        "ONE"
+      ],
+      "bounds": {
+        "cx": 0.4986333211263021,
+        "cy": 0.17812520265579224,
+        "w": 0.19079700046115455,
+        "h": 0.040772771835327126
+      },
+      "line_boxes": [
+        {
+          "cx": 0.4986333211263021,
+          "cy": 0.17812520265579224,
+          "w": 0.19079700046115455,
+          "h": 0.040772771835327126
+        }
+      ],
+      "anchor": "an8",
+      "fill": "#FEFFFF",
+      "outline": "#000104",
+      "box_color": null,
+      "line_height": 0.040772771835327126,
+      "font_px_estimate": 104.0,
+      "uppercase": true,
+      "animation": null,
+      "safe_zone": {
+        "top": 0.08,
+        "right": 0.253,
+        "bottom": 0.635,
+        "left": 0.348,
+        "inside": true
+      }
+    },
+    {
+      "id": "c2",
+      "range": {
+        "start": {
+          "value": 60,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        },
+        "duration": {
+          "value": 60,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        }
+      },
+      "text": "TWO",
+      "lines": [
+        "TWO"
+      ],
+      "bounds": {
+        "cx": 0.4976985931396484,
+        "cy": 0.4974626541137695,
+        "w": 0.21255857679578993,
+        "h": 0.04594001770019529
+      },
+      "line_boxes": [
+        {
+          "cx": 0.4976985931396484,
+          "cy": 0.4974626541137695,
+          "w": 0.21255857679578993,
+          "h": 0.04594001770019529
+        }
+      ],
+      "anchor": "an5",
+      "fill": "#FFFFFF",
+      "outline": "#090000",
+      "box_color": null,
+      "line_height": 0.04594001770019529,
+      "font_px_estimate": 118.0,
+      "uppercase": true,
+      "animation": null,
+      "safe_zone": {
+        "top": 0.396,
+        "right": 0.243,
+        "bottom": 0.313,
+        "left": 0.336,
+        "inside": true
+      }
+    },
+    {
+      "id": "c3",
+      "range": {
+        "start": {
+          "value": 120,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        },
+        "duration": {
+          "value": 60,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        }
+      },
+      "text": "THREE",
+      "lines": [
+        "THREE"
+      ],
+      "bounds": {
+        "cx": 0.49722222222222223,
+        "cy": 0.7984375,
+        "w": 0.30000000000000004,
+        "h": 0.0390625
+      },
+      "line_boxes": [
+        {
+          "cx": 0.49722222222222223,
+          "cy": 0.7984375,
+          "w": 0.30000000000000004,
+          "h": 0.0390625
+        }
+      ],
+      "anchor": "an2",
+      "fill": "#FFFFFF",
+      "outline": "#000800",
+      "box_color": null,
+      "line_height": 0.0390625,
+      "font_px_estimate": 100.0,
+      "uppercase": true,
+      "animation": null,
+      "safe_zone": {
+        "top": 0.701,
+        "right": 0.2,
+        "bottom": 0.015,
+        "left": 0.292,
+        "inside": true
+      }
+    }
+  ],
+  "motion": [
+    {
+      "shot": 1,
+      "confidence": 0.0,
+      "transform": null
+    },
+    {
+      "shot": 2,
+      "confidence": 0.0,
+      "transform": null
+    },
+    {
+      "shot": 3,
+      "confidence": 0.0,
+      "transform": null
+    }
+  ],
+  "overlays": [],
+  "look": {
+    "dominant": [
+      {
+        "hex": "#1E2A38",
+        "share": 0.331
+      },
+      {
+        "hex": "#C8AA6C",
+        "share": 0.33
+      },
+      {
+        "hex": "#2D7E32",
+        "share": 0.329
+      }
+    ],
+    "luma": {
+      "mean": 0.414,
+      "min": 0.159,
+      "max": 0.674
+    },
+    "saturation": 0.519,
+    "warmth": 0.079
+  },
+  "shot_looks": [
+    {
+      "shot": 1,
+      "look": {
+        "dominant": [
+          {
+            "hex": "#1E2A38",
+            "share": 0.994
+          },
+          {
+            "hex": "#B1B4B6",
+            "share": 0.001
+          },
+          {
+            "hex": "#373E46",
+            "share": 0.001
+          }
+        ],
+        "luma": {
+          "mean": 0.161,
+          "min": 0.159,
+          "max": 0.159
+        },
+        "saturation": 0.461,
+        "warmth": -0.101
+      }
+    },
+    {
+      "shot": 2,
+      "look": {
+        "dominant": [
+          {
+            "hex": "#C8AA6C",
+            "share": 0.992
+          },
+          {
+            "hex": "#AF9E7E",
+            "share": 0.002
+          },
+          {
+            "hex": "#AF9664",
+            "share": 0.002
+          }
+        ],
+        "luma": {
+          "mean": 0.674,
+          "min": 0.674,
+          "max": 0.674
+        },
+        "saturation": 0.458,
+        "warmth": 0.359
+      }
+    },
+    {
+      "shot": 3,
+      "look": {
+        "dominant": [
+          {
+            "hex": "#2D7E32",
+            "share": 0.988
+          },
+          {
+            "hex": "#8BA18B",
+            "share": 0.002
+          },
+          {
+            "hex": "#4B7A4D",
+            "share": 0.002
+          }
+        ],
+        "luma": {
+          "mean": 0.407,
+          "min": 0.405,
+          "max": 0.421
+        },
+        "saturation": 0.638,
+        "warmth": -0.019
+      }
+    }
+  ],
+  "timing": {
+    "frames": 180,
+    "detect_ms_per_frame": 0.0
+  }
+}

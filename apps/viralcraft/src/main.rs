@@ -43,7 +43,9 @@ enum Command {
     Audio { run_dir: PathBuf },
     /// Measure captions (and later motion, look, overlays) from the frames.
     Inspect { run_dir: PathBuf },
-    /// Detect cuts, dissolves and flashes; extract every frame at half size.
+    /// Write EDIT-SPEC.md from the measurements in a run directory.
+    Editspec { run_dir: PathBuf },
+    /// Detect cuts, dissolves and flashes; extract every frame (720 px short side).
     Shots {
         run_dir: PathBuf,
         /// scdet score (0..100) a hard cut must reach.
@@ -60,6 +62,7 @@ impl Command {
             Command::Shots { .. } => "shots",
             Command::Audio { .. } => "audio",
             Command::Inspect { .. } => "inspect",
+            Command::Editspec { .. } => "editspec",
         }
     }
 }
@@ -138,6 +141,16 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                     "detect_ms_per_frame": inspect.timing.detect_ms_per_frame,
                     "files": [run_dir.join(inspect::INSPECT_FILE)],
                 }),
+                true,
+            ))
+        }
+        Command::Editspec { run_dir } => {
+            let path = editspec::run(&run_dir)?;
+            let todos = std::fs::read_to_string(&path)
+                .map(|d| d.matches("TODO:").count())
+                .unwrap_or(0);
+            Ok((
+                json!({ "ok": true, "todo_slots": todos, "files": [path] }),
                 true,
             ))
         }

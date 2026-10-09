@@ -327,7 +327,7 @@ today; the classifier sits behind one function so it can be swapped.
 
 ## Phase 3: Outputs
 
-## Task 12: EDIT-SPEC.md writer
+## Task 12: EDIT-SPEC.md writer ✅ done
 
 **Description:** `crates/editspec` renders the Markdown from probe, shots,
 audio and inspect JSON, in the exact section and field layout of `SPEC.md`,
@@ -335,13 +335,13 @@ with `unknown` for unmeasured values and `<!-- judgement -->` slots holding
 `TODO:`. Snapshot tests with `insta` from fixed JSON inputs.
 
 **Acceptance criteria:**
-- [ ] Snapshot of the spec for the `cuts-3` JSON matches and contains every section header from `SPEC.md` in order
-- [ ] No field is empty: every value is a number, text, `unknown` or `TODO:`
-- [ ] Times render as `1.800s (f54)` and positions as `an8 (0.50, 0.14)`
+- [x] Snapshot of the spec for the `cuts-3` JSON matches and contains every section header from `SPEC.md` in order
+- [x] No field is empty: every value is a number, text, `unknown` or `TODO:`
+- [x] Times render as `1.800s (f54)` and positions as `an8 (0.50, 0.14)`; sounds list the cut or caption they land on; caption styles group by colour
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p editspec`
-- [ ] Manual check: open `out/cuts-3/EDIT-SPEC.md`, read it as an editor would
+- [x] Tests pass: `cargo test -p editspec`
+- [x] Manual check: open `out/cuts-3/EDIT-SPEC.md`, read it as an editor would
 
 **Dependencies:** 7, 11
 

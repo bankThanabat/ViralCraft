@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "rate": {
+    "num": 30,
+    "den": 1
+  },
+  "frames": 180,
+  "threshold": 10.0,
+  "segments": [
+    {
+      "n": 1,
+      "range": {
+        "start": {
+          "value": 0,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        },
+        "duration": {
+          "value": 60,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        }
+      }
+    },
+    {
+      "n": 2,
+      "range": {
+        "start": {
+          "value": 60,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        },
+        "duration": {
+          "value": 60,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        }
+      }
+    },
+    {
+      "n": 3,
+      "range": {
+        "start": {
+          "value": 120,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        },
+        "duration": {
+          "value": 60,
+          "rate": {
+            "num": 30,
+            "den": 1
+          }
+        }
+      }
+    }
+  ],
+  "transitions": [],
+  "candidates": [
+    {
+      "frame": 60,
+      "score": 44.524,
+      "luma": 164.007,
+      "accepted": true
+    },
+    {
+      "frame": 120,
+      "score": 26.733,
+      "luma": 96.5185,
+      "accepted": true
+    }
+  ]
+}
