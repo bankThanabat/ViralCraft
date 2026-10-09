@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "hook": { "type": "text-overlay", "window": { "start": 0, "duration": 60 }, "why": "A single bold word on a flat card reads instantly and starts a count the viewer wants to finish." },
+  "shots": [
+    { "n": 1, "role": "a-roll", "speech": "none", "on_screen": "navy card with the word ONE" },
+    { "n": 2, "role": "a-roll", "speech": "none", "on_screen": "gold card with the word TWO" },
+    { "n": 3, "role": "b-roll", "speech": "none", "on_screen": "green card with the word THREE" }
+  ],
+  "captions": [
+    { "id": "c1", "kind": "caption", "font_substitute": "Arial Black" },
+    { "id": "c2", "kind": "caption", "font_substitute": "Arial Black" },
+    { "id": "c3", "kind": "scene-text" }
+  ],
+  "overlays": [],
+  "look": { "name": "flat primaries", "match_by": "solid colour cards, no grade" },
+  "story_beats": [
+    { "start": 0, "duration": 60, "label": "hook: one" },
+    { "start": 60, "duration": 60, "label": "build: two" },
+    { "start": 120, "duration": 60, "label": "payoff: three" }
+  ],
+  "format_name": "counting cards on the beat",
+  "overrides": [
+    { "path": "shots[1].camera", "value": "static", "reason": "flat card, nothing for the tracker to lock on" }
+  ]
+}

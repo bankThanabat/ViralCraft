@@ -5,6 +5,7 @@
 //! stderr.
 
 mod doctor_cmd;
+mod finalize;
 mod prompt;
 
 use std::path::PathBuf;
@@ -43,7 +44,10 @@ enum Command {
     Audio { run_dir: PathBuf },
     /// Measure captions (and later motion, look, overlays) from the frames.
     Inspect { run_dir: PathBuf },
-    /// Write captions.vtt and captions.ass from the measurements.
+    /// After judgement.json is written: check it, then write the finished
+    /// EDIT-SPEC.md, captions and timeline.
+    Finalize { run_dir: PathBuf },
+    /// Write captions.vtt, captions.ass and timeline.otio from the measurements.
     Exports { run_dir: PathBuf },
     /// Write EDIT-SPEC.md from the measurements in a run directory.
     Editspec { run_dir: PathBuf },
@@ -66,6 +70,7 @@ impl Command {
             Command::Inspect { .. } => "inspect",
             Command::Editspec { .. } => "editspec",
             Command::Exports { .. } => "exports",
+            Command::Finalize { .. } => "finalize",
         }
     }
 }
@@ -147,6 +152,7 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                 true,
             ))
         }
+        Command::Finalize { run_dir } => finalize::run(&run_dir),
         Command::Exports { run_dir } => {
             let files = exports::run(&run_dir)?;
             Ok((json!({ "ok": true, "files": files }), true))

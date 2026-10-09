@@ -4,7 +4,7 @@
 //! overlap. Everything ViralCraft knows rides along in
 //! `metadata.viralcraft`.
 
-use model::{Audio, Fps, Inspect, Probe, Shots, TransitionKind};
+use model::{Audio, Fps, Inspect, Judgement, Probe, Shots, TransitionKind};
 use serde_json::{json, Value};
 
 pub fn rt(value: i64, rate: Fps) -> Value {
@@ -156,6 +156,18 @@ fn lane_tracks(mut items: Vec<Item>, total: i64, rate: Fps) -> Vec<Vec<Value>> {
 }
 
 pub fn write(probe: &Probe, shots: &Shots, audio: &Audio, inspect: &Inspect) -> Value {
+    write_judged(probe, shots, audio, inspect, None)
+}
+
+/// Like [`write`], with the agent's judgement attached to each shot and
+/// caption clip under `metadata.viralcraft.judgement`.
+pub fn write_judged(
+    probe: &Probe,
+    shots: &Shots,
+    audio: &Audio,
+    inspect: &Inspect,
+    judgement: Option<&Judgement>,
+) -> Value {
     let rate = probe.rate;
     let total = probe.frames;
 
@@ -190,7 +202,7 @@ pub fn write(probe: &Probe, shots: &Shots, audio: &Audio, inspect: &Inspect) -> 
             &format!("shot {}", seg.n),
             tr(seg.range.start.value, seg.range.duration.value, rate),
             source_media(total, rate),
-            json!({"shot": seg.n, "motion": motion, "look": look}),
+            json!({"shot": seg.n, "motion": motion, "look": look, "judgement": judgement.and_then(|j| j.shot(seg.n))}),
         ));
     }
     let mut v1_markers: Vec<Value> = audio
@@ -232,7 +244,12 @@ pub fn write(probe: &Probe, shots: &Shots, audio: &Audio, inspect: &Inspect) -> 
             end: c.range.end_frame(),
             name: c.text.replace('\n', " / "),
             kind: "viralcraft_caption",
-            meta: serde_json::to_value(c).expect("captions serialize"),
+            meta: {
+                let mut v = serde_json::to_value(c).expect("captions serialize");
+                v["judgement"] = serde_json::to_value(judgement.and_then(|j| j.caption(&c.id)))
+                    .expect("notes serialize");
+                v
+            },
         })
         .collect();
     let overlays: Vec<Item> = inspect
@@ -479,6 +496,35 @@ mod tests {
         assert_eq!(tr["transition_type"], "SMPTE_Dissolve");
         assert_eq!(tr["in_offset"]["value"], 4.0);
         assert_eq!(tr["out_offset"]["value"], 4.0);
+    }
+
+    #[test]
+    fn judgement_rides_along_on_shot_and_caption_clips() {
+        let (probe, audio, inspect) = cuts3();
+        let dir = std::path::Path::new(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../editspec/tests/data/cuts-3"
+        ));
+        let j: model::Judgement =
+            serde_json::from_str(&std::fs::read_to_string(dir.join("judgement.json")).unwrap())
+                .unwrap();
+        let t = write_judged(&probe, &shots3(), &audio, &inspect, Some(&j));
+        let shot1 = &tracks(&t)[0]["children"][0];
+        assert_eq!(
+            shot1["metadata"]["viralcraft"]["judgement"]["role"],
+            "a-roll"
+        );
+        let one = tracks(&t)[1]["children"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == "ONE")
+            .cloned()
+            .unwrap();
+        assert_eq!(
+            one["metadata"]["viralcraft"]["judgement"]["kind"],
+            "caption"
+        );
     }
 
     #[test]

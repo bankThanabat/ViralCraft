@@ -14,6 +14,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 pub const EDIT_SPEC_FILE: &str = "EDIT-SPEC.md";
+pub const JUDGEMENT_FILE: &str = "judgement.json";
 
 #[derive(Debug, thiserror::Error)]
 pub enum EditSpecError {
@@ -47,6 +48,14 @@ pub fn load(run_dir: &Path) -> Result<Inputs, EditSpecError> {
         shots: read_json(&run_dir.join(shots::SHOTS_FILE))?,
         audio: read_json(&run_dir.join(audio::AUDIO_FILE))?,
         inspect: read_json(&run_dir.join(inspect::INSPECT_FILE))?,
+        judgement: {
+            let path = run_dir.join(JUDGEMENT_FILE);
+            if path.exists() {
+                Some(read_json(&path)?)
+            } else {
+                None
+            }
+        },
     })
 }
 

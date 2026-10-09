@@ -27,3 +27,29 @@ fn run_writes_the_caption_files_and_the_timeline() {
         .unwrap()
         .starts_with("[Script Info]"));
 }
+
+#[test]
+fn a_judgement_fixes_and_filters_every_export() {
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../editspec/tests/data/cuts-3");
+    let dir = tempfile::tempdir().unwrap();
+    for f in [
+        "probe.json",
+        "shots.json",
+        "audio.json",
+        "inspect.json",
+        "judgement.json",
+    ] {
+        fs::copy(data.join(f), dir.path().join(f)).unwrap();
+    }
+    let files = exports::run(dir.path()).unwrap();
+    for f in &files {
+        let text = fs::read_to_string(f).unwrap();
+        assert!(
+            !text.contains("THREE\n") && !text.contains("}THREE"),
+            "scene text c3 left in {}",
+            f.display()
+        );
+    }
+    let vtt = fs::read_to_string(&files[0]).unwrap();
+    assert_eq!(vtt.matches(" --> ").count(), 2);
+}

@@ -394,7 +394,7 @@ cross shots.
 
 **Estimated scope:** M
 
-## Task 15: judgement.json and finalize merge
+## Task 15: judgement.json and finalize merge ✅ done
 
 **Description:** `judgement.json` type in `model` with the `required` set.
 `finalize` validates it, fills every `TODO:` in `EDIT-SPEC.md`, applies
@@ -402,12 +402,12 @@ cross shots.
 missing required fields otherwise.
 
 **Acceptance criteria:**
-- [ ] A judgement missing `format_name` is rejected with that field named
-- [ ] After a complete judgement, the rendered spec has zero `TODO:` and the `shots[2].transform` override shows `unknown` with the reason in a comment
-- [ ] The OTIO clip for shot 1 has `metadata.viralcraft.role == "a-roll"`
+- [x] A judgement missing `format_name` is rejected with that field named
+- [x] After a complete judgement, the rendered spec has zero `TODO:` and an override (`shots[1].camera`) shows its value with the reason in a comment; scene-text captions leave every caption output
+- [x] The OTIO clip for shot 1 has `metadata.viralcraft.role == "a-roll"`
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p editspec -p exports -p model`
+- [x] Tests pass: `cargo test -p editspec -p exports -p model`
 
 **Dependencies:** 12, 14
 

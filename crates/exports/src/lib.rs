@@ -8,7 +8,7 @@ pub mod vtt;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use model::{Audio, Inspect, Probe, Shots};
+use model::{Audio, Inspect, Judgement, Probe, Shots};
 
 pub const VTT_FILE: &str = "captions.vtt";
 pub const ASS_FILE: &str = "captions.ass";
@@ -34,8 +34,18 @@ pub fn run(run_dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
     let probe: Probe = read_json(&run_dir.join("probe.json"))?;
     let shots: Shots = read_json(&run_dir.join("shots.json"))?;
     let audio: Audio = read_json(&run_dir.join("audio.json"))?;
-    let inspect: Inspect = read_json(&run_dir.join("inspect.json"))?;
-    let timeline = otio::write(&probe, &shots, &audio, &inspect);
+    let mut inspect: Inspect = read_json(&run_dir.join("inspect.json"))?;
+    let judgement_path = run_dir.join("judgement.json");
+    let judgement: Option<Judgement> = if judgement_path.exists() {
+        Some(read_json(&judgement_path)?)
+    } else {
+        None
+    };
+    if let Some(j) = &judgement {
+        j.apply_to_captions(&mut inspect.captions);
+        inspect.overlays.retain(|o| j.keeps_overlay(&o.id));
+    }
+    let timeline = otio::write_judged(&probe, &shots, &audio, &inspect, judgement.as_ref());
     let files = [
         (run_dir.join(VTT_FILE), vtt::write(&probe, &audio, &inspect)),
         (run_dir.join(ASS_FILE), ass::write(&probe, &inspect)),

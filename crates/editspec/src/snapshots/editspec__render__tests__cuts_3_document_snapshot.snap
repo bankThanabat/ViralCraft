@@ -4,6 +4,8 @@ expression: render(&cuts3())
 ---
 # Edit spec: cuts-3.mp4
 
+format: TODO: a short name for this format  <!-- judgement -->
+
 ## Source
 duration: 6.000s (f180) · 30/1 fps · 1080x1920 (9:16)
 audio: 48 kHz, 1 ch, starts 0 frames after video
@@ -23,7 +25,7 @@ why it works: TODO: one or two sentences
 
 ### Shot 1  (0.000s (f0) to 2.000s (f60))
 on screen: TODO: what the viewer sees  <!-- judgement -->
-role: TODO: A-roll | B-roll | insert | title card  <!-- judgement -->
+role: TODO: a-roll | b-roll | insert | title card  <!-- judgement -->
 speech: TODO: on-camera | voiceover | none  <!-- judgement -->
 camera: unknown · confidence 0.00
 framing: unknown
@@ -33,7 +35,7 @@ transition out: cut at 2.000s (f60)
 
 ### Shot 2  (2.000s (f60) to 4.000s (f120))
 on screen: TODO: what the viewer sees  <!-- judgement -->
-role: TODO: A-roll | B-roll | insert | title card  <!-- judgement -->
+role: TODO: a-roll | b-roll | insert | title card  <!-- judgement -->
 speech: TODO: on-camera | voiceover | none  <!-- judgement -->
 camera: unknown · confidence 0.00
 framing: unknown
@@ -43,7 +45,7 @@ transition out: cut at 4.000s (f120)
 
 ### Shot 3  (4.000s (f120) to 6.000s (f180))
 on screen: TODO: what the viewer sees  <!-- judgement -->
-role: TODO: A-roll | B-roll | insert | title card  <!-- judgement -->
+role: TODO: a-roll | b-roll | insert | title card  <!-- judgement -->
 speech: TODO: on-camera | voiceover | none  <!-- judgement -->
 camera: unknown · confidence 0.00
 framing: unknown

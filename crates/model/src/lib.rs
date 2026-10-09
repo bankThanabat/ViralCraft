@@ -6,6 +6,7 @@
 
 pub mod audio;
 pub mod inspect;
+pub mod judgement;
 pub mod probe;
 pub mod shots;
 pub mod time;
@@ -16,6 +17,7 @@ pub use inspect::{
     Animation, BoxN, CaptionEvent, Clearance, Ease, Inspect, InspectTiming, Keyframe, Look,
     LumaStats, OverlayEvent, ShotLook, ShotMotion, Swatch, Transform,
 };
+pub use judgement::{Judgement, Needs};
 pub use probe::{AudioInfo, Probe, SafeZone};
 pub use shots::{Candidate, Segment, Shots, Transition, TransitionKind};
 pub use time::{Fps, RationalTime, TimeError, TimeRange};

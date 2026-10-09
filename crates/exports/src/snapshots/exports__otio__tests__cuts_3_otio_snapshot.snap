@@ -62,6 +62,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
             },
             "metadata": {
               "viralcraft": {
+                "judgement": null,
                 "look": {
                   "dominant": [
                     {
@@ -139,6 +140,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
             },
             "metadata": {
               "viralcraft": {
+                "judgement": null,
                 "look": {
                   "dominant": [
                     {
@@ -216,6 +218,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
             },
             "metadata": {
               "viralcraft": {
+                "judgement": null,
                 "look": {
                   "dominant": [
                     {
@@ -608,6 +611,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
                 "fill": "#FEFFFF",
                 "font_px_estimate": 104.0,
                 "id": "c1",
+                "judgement": null,
                 "line_boxes": [
                   {
                     "cx": 0.4986333211263021,
@@ -707,6 +711,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
                 "fill": "#FFFFFF",
                 "font_px_estimate": 118.0,
                 "id": "c2",
+                "judgement": null,
                 "line_boxes": [
                   {
                     "cx": 0.4976985931396484,
@@ -806,6 +811,7 @@ expression: "serde_json::to_string_pretty(&timeline()).unwrap()"
                 "fill": "#FFFFFF",
                 "font_px_estimate": 100.0,
                 "id": "c3",
+                "judgement": null,
                 "line_boxes": [
                   {
                     "cx": 0.49722222222222223,
