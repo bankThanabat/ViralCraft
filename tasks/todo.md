@@ -229,20 +229,20 @@ correlation peak sharpness.
 
 **Estimated scope:** M
 
-## Task 10: look statistics and safe-zone clearance
+## Task 10: look statistics and safe-zone clearance ✅ done
 
-**Description:** Per shot and overall: dominant colors (k-means, k=3, on a
-subsample), luma mean/min/max, saturation mean, warmth as mean R minus B,
+**Description:** Per shot and overall: dominant colors (16-level histogram bins,
+near-identical merged, top 3), luma mean/min/max, saturation mean, warmth as mean R minus B,
 computed in Rec.709 from the half-res frames. Per caption and overlay:
 clearance from each safe-zone band, and an `inside` flag.
 
 **Acceptance criteria:**
-- [ ] A synthetic frame of three flat colors returns those three hexes as dominant within ±2 per channel
-- [ ] A caption box at y 0.90 with the `tiktok-2026-conservative` profile is `inside: false` with bottom clearance negative
-- [ ] Ignored test on `cuts-3.mp4`: dominant colors match the fixture's scene colors
+- [x] A synthetic frame of three flat colors returns those three hexes as dominant within ±2 per channel
+- [x] A caption box at y 0.90 with the `tiktok-2026-conservative` profile is `inside: false` with bottom clearance negative
+- [x] Ignored test on `cuts-3.mp4`: dominant colors match the fixture's scene colors
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p inspect`
+- [x] Tests pass: `cargo test -p inspect`
 
 **Dependencies:** 8
 

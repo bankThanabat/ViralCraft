@@ -74,6 +74,10 @@ pub struct Inspect {
     pub captions: Vec<CaptionEvent>,
     /// One entry per shot, in shot order.
     pub motion: Vec<ShotMotion>,
+    /// Look of the whole video.
+    pub look: Look,
+    /// Look of each shot, in shot order.
+    pub shot_looks: Vec<ShotLook>,
     pub timing: InspectTiming,
 }
 
@@ -144,4 +148,53 @@ pub struct CaptionEvent {
     pub font_px_estimate: f64,
     pub uppercase: bool,
     pub animation: Option<Animation>,
+    /// Distance from each platform UI band, from `probe.json`'s profile.
+    pub safe_zone: Clearance,
+}
+
+/// Distance from a box edge to the matching safe-zone band, in normalized
+/// units. Negative means the box reaches under the platform UI.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Clearance {
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+    pub left: f64,
+    pub inside: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Swatch {
+    /// `#RRGGBB`, sRGB.
+    pub hex: String,
+    /// Fraction of sampled pixels, 0..1.
+    pub share: f64,
+}
+
+/// Rec.709 luma, 0..1. `min` and `max` are the 1st and 99th percentiles so
+/// a few stray pixels do not set them.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct LumaStats {
+    pub mean: f64,
+    pub min: f64,
+    pub max: f64,
+}
+
+/// Measured output appearance. Not the grade the editor applied; see the
+/// `look` section of the edit spec.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Look {
+    /// Up to three, largest share first.
+    pub dominant: Vec<Swatch>,
+    pub luma: LumaStats,
+    /// Mean HSV saturation, 0..1.
+    pub saturation: f64,
+    /// Mean of (R - B) / 255; positive is warm.
+    pub warmth: f64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ShotLook {
+    pub shot: u32,
+    pub look: Look,
 }

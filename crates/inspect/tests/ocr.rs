@@ -101,3 +101,41 @@ fn zoom_1_reads_as_a_100_to_120_eased_zoom() {
     let i = t.scale[0].i.unwrap();
     assert!((0.45..=0.7).contains(&i.x), "i.x {}", i.x);
 }
+
+#[test]
+#[ignore = "needs ffmpeg and the ocrs models"]
+fn cuts_3_shot_looks_are_the_scene_colours_and_captions_are_safe() {
+    let out = tempfile::tempdir().unwrap();
+    let run_dir = ingest::run(
+        &fixtures().join("cuts-3.mp4"),
+        out.path(),
+        model::probe::DEFAULT_SAFE_ZONE,
+    )
+    .unwrap();
+    shots::run(&run_dir).unwrap();
+    let result = inspect::run(&run_dir).unwrap();
+
+    let truth: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(fixtures().join("fixtures.json")).unwrap())
+            .unwrap();
+    let colors = truth["cuts"]["scene_colors"].as_array().unwrap();
+    assert_eq!(result.shot_looks.len(), 3);
+    for (shot, want) in result.shot_looks.iter().zip(colors) {
+        let top = &shot.look.dominant[0].hex;
+        assert!(
+            near(top, want.as_str().unwrap(), 6),
+            "shot {} top colour {top} vs {want}",
+            shot.shot
+        );
+    }
+    // THREE sits at y 0.80, inside the 320 px bottom band (y > 0.833 is UI).
+    assert!(
+        result.captions.iter().all(|c| c.safe_zone.inside),
+        "{:?}",
+        result
+            .captions
+            .iter()
+            .map(|c| (&c.text, c.safe_zone))
+            .collect::<Vec<_>>()
+    );
+}

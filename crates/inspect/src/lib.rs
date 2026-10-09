@@ -1,6 +1,7 @@
 //! `inspect`: measurements from the extracted frames.
 
 pub mod captions;
+pub mod look;
 pub mod motion;
 pub mod style;
 pub mod text;
@@ -11,7 +12,9 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use image::{imageops, GrayImage, RgbImage};
-use model::{BoxN, CaptionEvent, Inspect, InspectTiming, Probe, ShotMotion, Shots, TimeRange};
+use model::{
+    BoxN, CaptionEvent, Inspect, InspectTiming, Probe, ShotLook, ShotMotion, Shots, TimeRange,
+};
 
 pub const INSPECT_FILE: &str = "inspect.json";
 
@@ -130,13 +133,27 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
             line_height,
             font_px_estimate: (line_height * f64::from(probe.height) / LINE_TO_FONT).round(),
             animation: c.animation,
+            safe_zone: look::clearance(&c.bounds, &probe.safe_zone),
         });
+    }
+
+    let mut all_pixels = Vec::new();
+    let mut shot_looks = Vec::new();
+    for seg in &shots.segments {
+        let pixels = sample_pixels(run_dir, seg.range.start.value, seg.range.end_frame())?;
+        shot_looks.push(ShotLook {
+            shot: seg.n,
+            look: look::measure(&pixels),
+        });
+        all_pixels.extend(pixels);
     }
 
     let inspect = Inspect {
         version: 1,
         rate: probe.rate,
         motion: measure_motion(&shots, &thumbs, &events),
+        look: look::measure(&all_pixels),
+        shot_looks,
         captions: events,
         timing: InspectTiming {
             frames,
@@ -186,6 +203,21 @@ fn measure_motion(
             }
         })
         .collect()
+}
+
+/// Pixels from up to five evenly spaced frames of `[start, end)`, each
+/// reduced to 68x120 so every shot weighs the same per frame.
+fn sample_pixels(run_dir: &Path, start: i64, end: i64) -> Result<Vec<[u8; 3]>, InspectError> {
+    const SAMPLES: i64 = 5;
+    let len = (end - start).max(1);
+    let mut frames: Vec<i64> = (0..SAMPLES).map(|k| start + k * len / SAMPLES).collect();
+    frames.dedup();
+    let mut pixels = Vec::new();
+    for f in frames {
+        let img = imageops::thumbnail(&load_frame(run_dir, f as u64)?, 68, 120);
+        pixels.extend(img.pixels().map(|p| p.0));
+    }
+    Ok(pixels)
 }
 
 fn load_frame(run_dir: &Path, n: u64) -> Result<RgbImage, InspectError> {
