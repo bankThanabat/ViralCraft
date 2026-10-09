@@ -95,8 +95,26 @@ fn run_dir_with(files: &[&str]) -> tempfile::TempDir {
     let dir = tempfile::tempdir().unwrap();
     for f in files {
         std::fs::copy(data.join(f), dir.path().join(f)).unwrap();
+        // Fixed times, judgement last, as when an agent writes it after
+        // analyze; copying may keep the source files' own times.
+        let at = if *f == "judgement.json" {
+            1_000_060
+        } else {
+            1_000_000
+        };
+        set_modified(&dir.path().join(f), at);
     }
     dir
+}
+
+fn set_modified(path: &Path, seconds: u64) {
+    let time = std::time::UNIX_EPOCH + std::time::Duration::from_secs(seconds);
+    std::fs::File::options()
+        .write(true)
+        .open(path)
+        .unwrap()
+        .set_modified(time)
+        .unwrap();
 }
 
 const MEASURED: [&str; 4] = ["probe.json", "shots.json", "audio.json", "inspect.json"];
@@ -163,6 +181,25 @@ fn finalize_with_a_complete_judgement_writes_every_file() {
     ] {
         assert!(dir.path().join(f).exists(), "{f}");
     }
+}
+
+#[test]
+fn finalize_refuses_a_judgement_older_than_the_measurements() {
+    // Re-running inspect renumbers captions; an old judgement would then
+    // relabel the wrong ones without any error.
+    let mut files = MEASURED.to_vec();
+    files.push("judgement.json");
+    let dir = run_dir_with(&files);
+    set_modified(&dir.path().join("inspect.json"), 1_000_120);
+
+    let out = viralcraft(&["finalize", dir.path().to_str().unwrap()], dir.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let summary = single_json_line(&out.stdout);
+    let error = summary["error"].as_str().unwrap();
+    assert!(error.contains("inspect.json"), "{error}");
+    assert!(error.contains("judgement.json"), "{error}");
+    assert!(!dir.path().join("TEMPLATE.md").exists());
 }
 
 #[test]

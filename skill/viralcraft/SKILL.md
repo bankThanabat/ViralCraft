@@ -70,7 +70,10 @@ Rules that matter most:
 ## 4. Finalize
 
 Run `viralcraft finalize <run_dir>`. If `ok` is false, `missing` lists the
-fields still empty; fill them and run it again. When it passes, it writes the
+fields still empty; fill them and run it again. If the error says the
+measurements changed after judgement.json was written, the video was
+analyzed again and the ids moved: review again from step 3 and rewrite the
+judgement. When it passes, it writes the
 finished EDIT-SPEC.md, captions.vtt, captions.ass, timeline.otio and a draft
 TEMPLATE.md.
 

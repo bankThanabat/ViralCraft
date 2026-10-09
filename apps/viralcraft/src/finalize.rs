@@ -16,6 +16,16 @@ pub fn run(run_dir: &Path) -> anyhow::Result<(Value, bool)> {
             judgement_path.display()
         );
     }
+    let stale = changed_since(run_dir, &judgement_path);
+    if !stale.is_empty() {
+        bail!(
+            "{} changed after {} was written: shot and caption ids may now point at different \
+             things. Review EDIT-SPEC.md and the frames again and rewrite {}",
+            stale.join(" and "),
+            editspec::JUDGEMENT_FILE,
+            editspec::JUDGEMENT_FILE
+        );
+    }
     let inputs = editspec::load(run_dir)?;
     let judgement = inputs.judgement.clone().unwrap_or_default();
     let needs = Needs {
@@ -49,4 +59,18 @@ pub fn run(run_dir: &Path) -> anyhow::Result<(Value, bool)> {
     files.extend(exports::run(run_dir)?);
     files.push(template::run(run_dir, &inputs)?);
     Ok((json!({ "ok": true, "files": files }), true))
+}
+
+/// The measured files that number what the judgement refers to (shots,
+/// captions, overlays) and are newer than the judgement. Re-running
+/// `shots` or `inspect` renumbers them.
+fn changed_since(run_dir: &Path, judgement: &Path) -> Vec<&'static str> {
+    let modified = |p: &Path| std::fs::metadata(p).and_then(|m| m.modified()).ok();
+    let Some(judged) = modified(judgement) else {
+        return Vec::new();
+    };
+    [shots::SHOTS_FILE, inspect::INSPECT_FILE]
+        .into_iter()
+        .filter(|f| modified(&run_dir.join(f)).is_some_and(|t| t > judged))
+        .collect()
 }
