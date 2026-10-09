@@ -278,12 +278,12 @@ anchor, size, in/out. Kind is left to judgement. Allowed to be conservative.
 problems. Fix them, then rerun the clip and compare.
 
 **Acceptance criteria:**
-- [ ] Music is reported wherever a continuous background bed is present, beat or no beat (the clip's bed never drops below -33 dB; voice-only audio does)
-- [ ] Caption events need at least 3 letters or digits on one line and at least 6 frames; the clip drops from 523 events to about 37
-- [ ] Frames are extracted at 720 px on the short side (never upscaled), so 720p sources keep full resolution for OCR
-- [ ] Text on a solid box is reported as a box (ASS BorderStyle 3), not an outline
-- [ ] A shot whose scale wobbles but starts and ends at the same value gets one keyframe
-- [ ] judgement.json can mark a caption as scene text (SPEC.md only; code in task 15)
+- [x] Music is reported wherever a continuous background bed is present, beat or no beat (the clip's bed never drops below -33 dB; voice-only audio does)
+- [x] Caption events need at least 3 letters or digits on one line and at least 6 frames; the clip drops from 523 events to about 37
+- [x] Frames are extracted at 720 px on the short side (never upscaled), so 720p sources keep full resolution for OCR
+- [x] Text on a solid box is reported as a box (ASS BorderStyle 3), not an outline
+- [x] A shot whose scale wobbles but starts and ends at the same value gets one keyframe
+- [x] judgement.json can mark a caption as scene text (SPEC.md only; code in task 15)
 
 **Verification:**
 - [ ] Tests pass: `cargo test --workspace` and `cargo test --workspace --release -- --ignored`

@@ -301,6 +301,12 @@ What each section borrows:
   `onset`. "On beat" means within ±2 frames, the editing equivalent of the
   ±70 ms window beat-tracking research uses. Tracks are OTIO audio tracks
   with gain and fades in metadata.
+- **Sound sync.** Viral edits tie sounds to picture: a whoosh on a
+  transition, a pop when a caption or zoom lands. Each onset and labelled
+  sound within ±2 frames of a cut, transition, caption entrance, overlay
+  entrance or zoom start is listed against that event in a `sync` column,
+  so the editor knows which sound goes with which edit. Requested by the
+  user after the first real clip.
 - **Safe zones** have no published TikTok spec. v1 ships one named profile,
   `tiktok-2026-conservative` (top 150 px, right 165 px, bottom 320 px, left
   60 px on 1080x1920, from measured overlay files), stores it in
@@ -367,7 +373,8 @@ override any measured value with a reason.
       "on_screen": "creator to camera, kitchen" }
   ],
   "captions": [
-    { "id": "c1", "font_substitute": "Inter Black", "text_fix": null }
+    { "id": "c1", "kind": "caption", "font_substitute": "Inter Black", "text_fix": null },
+    { "id": "c4", "kind": "scene-text", "text_fix": "ONE WISH WILLOW" }
   ],
   "overlays": [ { "id": "o1", "kind": "emoji", "description": "fire emoji" } ],
   "sound": { "music_role": "bed", "speech_kind": [ { "start": 0, "duration": 54, "kind": "on-camera" } ] },
@@ -381,8 +388,12 @@ override any measured value with a reason.
 ```
 
 Required before a spec is finished: `hook`, every shot's `role` and `speech`,
-every caption's `font_substitute` when the font is `unknown`, every overlay's
-`kind`, `look.name`, `story_beats`, `format_name`.
+every caption's `kind` (`caption`, `title`, `watermark` or `scene-text`) and
+its `font_substitute` when the font is `unknown`, every overlay's `kind`,
+`look.name`, `story_beats`, `format_name`. OCR cannot tell burned-in captions
+from text that is part of the scene (the first real clip's product packaging
+read as captions), so the agent decides; `scene-text` captions stay in
+`inspect.json` but leave the edit spec's caption track.
 
 `finalize` merges it into EDIT-SPEC.md, writes it to `metadata.viralcraft` on
 the matching OTIO clip, marker or transition, and emits TEMPLATE.md.
@@ -607,6 +618,12 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
   ramps are left to the agent and the editor.
 
 ## Open Questions
+
+0. **Naming sound effects.** v1 labels only the sounds whisper tags itself
+   (`[sighs]`, `[laughs]`). Naming typing, whooshes, pops, risers and
+   swipes needs a sound-event classifier, for example YAMNet (521 AudioSet
+   classes) run through `rten`. That adds a model download and is proposed
+   as a task after Phase 2 for the user to approve.
 
 1. **Beat detection quality** on compressed TikTok audio with speech over
    music is unknown. The fixture uses a clean click; a real-video check is
