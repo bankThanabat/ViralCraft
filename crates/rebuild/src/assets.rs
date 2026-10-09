@@ -33,6 +33,8 @@ const MAX_LABELS: usize = 5;
 pub enum AssetsError {
     #[error("no video clips in {0}")]
     NoClips(PathBuf),
+    #[error("no music or sound effect files in {0}")]
+    NoSounds(PathBuf),
     #[error("{path}")]
     Io { path: PathBuf, source: io::Error },
     #[error(transparent)]
@@ -178,6 +180,32 @@ pub fn resolve_folder(
         Some(dir) if !find_clips(&dir)?.is_empty() => Ok(dir),
         Some(dir) => Err(AssetsError::NoClips(dir)),
         None => Err(AssetsError::NoClips(given.to_path_buf())),
+    }
+}
+
+/// The extra folders to read sounds from: `given` when the user named
+/// some; none when the assets folder has sounds of its own; otherwise asks
+/// once. No answer (Enter, or nobody there to answer) means no sounds,
+/// which is fine; a named folder without audio files is an error.
+pub fn resolve_sound_dirs(
+    folder: &Path,
+    given: &[PathBuf],
+    ask: impl FnOnce(&str) -> Option<PathBuf>,
+) -> Result<Vec<PathBuf>, AssetsError> {
+    if !given.is_empty() {
+        return Ok(given.to_vec());
+    }
+    if !find_sounds(folder)?.is_empty() {
+        return Ok(Vec::new());
+    }
+    let question = format!(
+        "No music or sound effects in {}. Which folder has them? (Enter to skip)",
+        folder.display()
+    );
+    match ask(&question) {
+        Some(dir) if !find_sounds(&dir)?.is_empty() => Ok(vec![dir]),
+        Some(dir) => Err(AssetsError::NoSounds(dir)),
+        None => Ok(Vec::new()),
     }
 }
 
@@ -503,6 +531,54 @@ mod tests {
             .display()
             .to_string();
         assert_eq!(got, ["song.mp3".to_string(), far]);
+    }
+
+    #[test]
+    fn sounds_in_the_assets_folder_need_no_question() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("song.mp3"), b"x").unwrap();
+        let got = resolve_sound_dirs(dir.path(), &[], |_| panic!("asked")).unwrap();
+        assert!(got.is_empty(), "the assets folder is always read");
+    }
+
+    #[test]
+    fn folders_the_user_named_need_no_question() {
+        let dir = tempfile::tempdir().unwrap();
+        let named = vec![PathBuf::from("/somewhere/sfx")];
+        let got = resolve_sound_dirs(dir.path(), &named, |_| panic!("asked")).unwrap();
+        assert_eq!(got, named);
+    }
+
+    #[test]
+    fn with_no_sounds_found_the_user_is_asked_once() {
+        let assets = tempfile::tempdir().unwrap();
+        let sfx = tempfile::tempdir().unwrap();
+        fs::write(sfx.path().join("whoosh.wav"), b"x").unwrap();
+        let mut asked = String::new();
+        let got = resolve_sound_dirs(assets.path(), &[], |q| {
+            asked = q.to_string();
+            Some(sfx.path().to_path_buf())
+        })
+        .unwrap();
+        assert_eq!(got, [sfx.path().to_path_buf()]);
+        assert!(asked.contains("No music or sound effects"), "{asked}");
+        assert!(asked.contains("Enter to skip"), "{asked}");
+    }
+
+    #[test]
+    fn no_answer_means_no_sounds_and_no_error() {
+        let assets = tempfile::tempdir().unwrap();
+        let got = resolve_sound_dirs(assets.path(), &[], |_| None).unwrap();
+        assert!(got.is_empty());
+    }
+
+    #[test]
+    fn an_answer_with_no_sounds_in_it_is_an_error() {
+        let assets = tempfile::tempdir().unwrap();
+        let empty = tempfile::tempdir().unwrap();
+        let err = resolve_sound_dirs(assets.path(), &[], |_| Some(empty.path().to_path_buf()))
+            .unwrap_err();
+        assert!(matches!(err, AssetsError::NoSounds(_)), "{err}");
     }
 
     #[test]

@@ -76,6 +76,7 @@ enum Command {
         #[arg(long, default_value = "assets")]
         assets: PathBuf,
         /// Another folder with music or sound effects to use (repeatable).
+        /// With none here and none in the assets folder, asks once.
         #[arg(long)]
         sounds: Vec<PathBuf>,
     },
@@ -202,6 +203,7 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
         } => {
             let folder = rebuild::resolve_folder(&assets, prompt::ask_path)?;
             eprintln!("assets: {}", folder.display());
+            let sound_dirs = rebuild::resolve_sound_dirs(&folder, &sound_dirs, prompt::ask_path)?;
             let read = rebuild::run(&run_dir, &folder, &sound_dirs)?;
             let clips: Vec<Value> = read
                 .clips

@@ -509,7 +509,9 @@ viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnosti
   changed) into `assets.json`'s `sounds`: length, tempo when a beat
   repeats over at least 4 s, loudness, what YAMNet hears, and a transcript
   for recordings with speech. `role` (music, effect, voice) is only a
-  first guess. The prompt shows the original's music and effects slot by
+  first guess. With no `--sounds` and no audio in the assets folder, the
+  CLI asks once for a folder (Enter, or no one to answer, skips; a named
+  folder without audio is an error). The prompt shows the original's music and effects slot by
   slot next to the user's sounds, and asks the agent to choose by what
   each part of the story does, not by file names, and to show the user
   its picks first. Effects in the original list the user's files that

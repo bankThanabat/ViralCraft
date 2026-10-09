@@ -114,7 +114,10 @@ Ask whether they want this format rebuilt with their own footage. If yes:
    and pass `--assets <folder>`. Everything is only read, never changed.
    If a clip or sound has `duplicate_of`, tell the user it is a copy.
    Each sound gets a `role` guess (music, effect, voice): a guess, not a
-   decision.
+   decision. When it finds no sounds it asks once, which you cannot answer
+   for the user: if `sounds` is empty, ask the user in chat where their
+   music and effects are, and run it again with `--sounds <folder>`, or
+   go on without sounds if they have none.
 3. Ask for a script: the caption lines they want, one per line. If they give
    one, save it as `<run_dir>/rebuild/script.txt` and pass `--script`.
 4. No script, and no clip has speech (`words` is 0 for every clip in the
