@@ -1,0 +1,15 @@
+[package]
+name = "template"
+description = "Writes TEMPLATE.md: the format with the content stripped out"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+editspec = { path = "../editspec" }
+model.workspace = true
+
+[dev-dependencies]
+insta = "1"
+serde_json.workspace = true

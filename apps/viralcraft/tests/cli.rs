@@ -155,7 +155,30 @@ fn finalize_with_a_complete_judgement_writes_every_file() {
     );
     let spec = std::fs::read_to_string(dir.path().join("EDIT-SPEC.md")).unwrap();
     assert!(!spec.contains("TODO"));
-    for f in ["captions.vtt", "captions.ass", "timeline.otio"] {
+    for f in [
+        "captions.vtt",
+        "captions.ass",
+        "timeline.otio",
+        "TEMPLATE.md",
+    ] {
         assert!(dir.path().join(f).exists(), "{f}");
     }
+}
+
+#[test]
+fn finalize_keeps_a_template_the_agent_has_finished() {
+    let mut files = MEASURED.to_vec();
+    files.push("judgement.json");
+    let dir = run_dir_with(&files);
+    std::fs::write(
+        dir.path().join("TEMPLATE.md"),
+        "# Template: finished by the agent\n",
+    )
+    .unwrap();
+
+    let out = viralcraft(&["finalize", dir.path().to_str().unwrap()], dir.path());
+
+    assert!(out.status.success());
+    let kept = std::fs::read_to_string(dir.path().join("TEMPLATE.md")).unwrap();
+    assert_eq!(kept, "# Template: finished by the agent\n");
 }

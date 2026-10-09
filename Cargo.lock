@@ -1129,6 +1129,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "template"
+version = "0.1.0"
+dependencies = [
+ "editspec",
+ "insta",
+ "model",
+ "serde_json",
+]
+
+[[package]]
 name = "thiserror"
 version = "2.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1204,6 +1214,7 @@ dependencies = [
  "serde_json",
  "shots",
  "tempfile",
+ "template",
  "which",
 ]
 

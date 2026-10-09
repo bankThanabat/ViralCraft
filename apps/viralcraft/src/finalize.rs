@@ -1,5 +1,6 @@
 //! `viralcraft finalize`: after the agent writes `judgement.json`, check it
-//! is complete, then write the finished edit spec and every export.
+//! is complete, then write the finished edit spec, every export and the
+//! template scaffold (kept if the agent has already completed it).
 
 use std::path::Path;
 
@@ -46,5 +47,6 @@ pub fn run(run_dir: &Path) -> anyhow::Result<(Value, bool)> {
 
     let mut files = vec![editspec::run(run_dir)?];
     files.extend(exports::run(run_dir)?);
+    files.push(template::run(run_dir, &inputs)?);
     Ok((json!({ "ok": true, "files": files }), true))
 }

@@ -415,7 +415,7 @@ missing required fields otherwise.
 
 **Estimated scope:** M
 
-## Task 16: TEMPLATE.md scaffold
+## Task 16: TEMPLATE.md scaffold ✅ done
 
 **Description:** `crates/template` writes the header, the slot table (one row
 per story beat with from/to/kind from shots and judgement), and "Observed
@@ -423,12 +423,12 @@ timings" (cut frames, beat grid, caption durations, transform ranges). Rules
 section is a `TODO:` for the agent.
 
 **Acceptance criteria:**
-- [ ] Snapshot for `cuts-3` with a complete judgement
-- [ ] Slot rows equal story beats; each has frame-accurate from/to
-- [ ] The Rules section contains exactly one `TODO:` line addressed to the agent
+- [x] Snapshot for `cuts-3` with a complete judgement
+- [x] Slot rows equal story beats; each has frame-accurate from/to
+- [x] The Rules section contains exactly one `TODO:` line addressed to the agent
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p template`
+- [x] Tests pass: `cargo test -p template`
 
 **Dependencies:** 15
 

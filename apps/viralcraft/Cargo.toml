@@ -18,6 +18,7 @@ exports = { path = "../../crates/exports" }
 ingest = { path = "../../crates/ingest" }
 inspect = { path = "../../crates/inspect" }
 shots = { path = "../../crates/shots" }
+template = { path = "../../crates/template" }
 which = "8"
 
 [dev-dependencies]
