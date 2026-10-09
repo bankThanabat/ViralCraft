@@ -112,11 +112,13 @@ Ask whether they want this format rebuilt with their own footage. If yes:
    - **AI voiceover.** Ask which voice. `say` is free: the computer's own
      voices, a bit robotic; Thai and English on a Mac. The cloud voices
      sound natural and use the user's own account and key, at a small cost
-     per video: `openai` and `elevenlabs` (US), `minimax` and `qwen`
-     (China). For Thai, `minimax` and `elevenlabs` list it; `qwen` does
-     not. The user puts the key in `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`,
-     `MINIMAX_API_KEY` or `DASHSCOPE_API_KEY` (Qwen, Alibaba Model Studio)
-     in the shell that runs the CLI. Never ask them to paste a key into
+     per video: `openai` and `elevenlabs` (US), `minimax`, `qwen` and
+     `bytedance` (China; `bytedance` is the Doubao voices behind CapCut).
+     For Thai, `minimax`, `bytedance` and `elevenlabs` list it; `qwen`
+     does not. The user puts the key in `OPENAI_API_KEY`,
+     `ELEVENLABS_API_KEY`, `MINIMAX_API_KEY`, `DASHSCOPE_API_KEY` (Qwen,
+     Alibaba Model Studio) or `VOLCENGINE_API_KEY` (ByteDance) in the
+     shell that runs the CLI. Never ask them to paste a key into
      the chat. Draft one line per
      caption in the original's language, voice and length, short enough to
      say before the next caption. Show the lines and wait for approval.

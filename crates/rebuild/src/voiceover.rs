@@ -21,7 +21,7 @@ const VOICE_DIR: &str = "voiceover";
 
 #[derive(Debug, thiserror::Error)]
 pub enum VoiceError {
-    #[error("unknown voice engine {0:?}: use say, openai, elevenlabs, minimax or qwen")]
+    #[error("unknown voice engine {0:?}: use say, openai, elevenlabs, minimax, qwen or bytedance")]
     Engine(String),
     #[error("{0} is not set: put your own API key in it, or use --engine say")]
     NoKey(&'static str),
@@ -60,6 +60,8 @@ pub enum Engine {
     MiniMax,
     /// Alibaba's Qwen-TTS through Model Studio, China. No Thai setting.
     Qwen,
+    /// ByteDance's Doubao voices through Volcengine, China. Speaks Thai.
+    ByteDance,
 }
 
 impl Engine {
@@ -70,6 +72,7 @@ impl Engine {
             "elevenlabs" => Ok(Engine::ElevenLabs),
             "minimax" => Ok(Engine::MiniMax),
             "qwen" => Ok(Engine::Qwen),
+            "bytedance" | "doubao" | "volcengine" => Ok(Engine::ByteDance),
             other => Err(VoiceError::Engine(other.to_string())),
         }
     }
@@ -81,6 +84,7 @@ impl Engine {
             Engine::ElevenLabs => "elevenlabs",
             Engine::MiniMax => "minimax",
             Engine::Qwen => "qwen",
+            Engine::ByteDance => "bytedance",
         }
     }
 
@@ -92,6 +96,7 @@ impl Engine {
             Engine::ElevenLabs => Some("ELEVENLABS_API_KEY"),
             Engine::MiniMax => Some("MINIMAX_API_KEY"),
             Engine::Qwen => Some("DASHSCOPE_API_KEY"),
+            Engine::ByteDance => Some("VOLCENGINE_API_KEY"),
         }
     }
 
@@ -104,6 +109,8 @@ impl Engine {
             Engine::ElevenLabs => "eleven_v3",
             Engine::MiniMax => "speech-2.8-hd",
             Engine::Qwen => "qwen3-tts-flash",
+            // The resource id: Doubao speech model 2.0.
+            Engine::ByteDance => "seed-tts-2.0",
         }
     }
 
@@ -119,6 +126,7 @@ impl Engine {
             // The voices in the providers' API reference examples.
             Engine::MiniMax => "English_expressive_narrator",
             Engine::Qwen => "Cherry",
+            Engine::ByteDance => "zh_female_vv_uranus_bigtts",
         }
     }
 }
@@ -184,7 +192,64 @@ pub fn request(engine: Engine, model: &str, voice: &str, text: &str, key: &str) 
                 "input": { "text": text, "voice": voice, "language_type": "Auto" }
             }),
         }),
+        Engine::ByteDance => Some(Request {
+            url: "https://openspeech.bytedance.com/api/v3/tts/unidirectional".to_string(),
+            headers: vec![
+                format!("X-Api-Key: {key}"),
+                format!("X-Api-Resource-Id: {model}"),
+                format!("X-Api-Request-Id: {}", request_id()),
+                "Content-Type: application/json".to_string(),
+            ],
+            body: json!({ "req_params": {
+                "text": text,
+                "speaker": voice,
+                "audio_params": { "format": "wav", "sample_rate": 24000 },
+                // Read the text's own language (Thai among them).
+                "additions": "{\"enable_auto_language_recognition\":true}"
+            }}),
+        }),
     }
+}
+
+/// A fresh id in UUID form for each ByteDance call, as its API requires.
+fn request_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    static COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let bits = now ^ ((u128::from(n) << 64) | u128::from(std::process::id()));
+    let h = format!("{bits:032x}");
+    format!(
+        "{}-{}-{}-{}-{}",
+        &h[..8],
+        &h[8..12],
+        &h[12..16],
+        &h[16..20],
+        &h[20..]
+    )
+}
+
+/// Standard base64 (with or without padding) to bytes.
+fn base64_decode(text: &str) -> Option<Vec<u8>> {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = Vec::with_capacity(text.len() * 3 / 4);
+    let (mut acc, mut bits) = (0u32, 0u32);
+    for c in text
+        .bytes()
+        .filter(|b| !b.is_ascii_whitespace() && *b != b'=')
+    {
+        let v = ALPHABET.iter().position(|&a| a == c)? as u32;
+        acc = (acc << 6) | v;
+        bits += 6;
+        if bits >= 8 {
+            bits -= 8;
+            out.push((acc >> bits) as u8);
+            acc &= (1 << bits) - 1;
+        }
+    }
+    Some(out)
 }
 
 /// What a service's reply holds.
@@ -197,7 +262,8 @@ pub enum Unwrapped {
 }
 
 /// The audio in a successful reply. OpenAI and ElevenLabs return the file;
-/// MiniMax wraps it as hex in JSON; Qwen returns a link good for a day.
+/// MiniMax wraps it as hex in JSON; Qwen returns a link good for a day;
+/// ByteDance streams JSON chunks, each with a base64 piece of the audio.
 pub fn unwrap_audio(engine: Engine, reply: &[u8]) -> Result<Unwrapped, VoiceError> {
     let fail = |detail: String| VoiceError::Speech {
         engine: engine.name(),
@@ -226,6 +292,35 @@ pub fn unwrap_audio(engine: Engine, reply: &[u8]) -> Result<Unwrapped, VoiceErro
                 .collect::<Result<Vec<u8>, _>>()
                 .map_err(|_| fail("audio is not hex".to_string()))?;
             Ok(Unwrapped::Bytes(bytes))
+        }
+        Engine::ByteDance => {
+            // One JSON object per chunk, newline-separated or back to back.
+            let text = String::from_utf8_lossy(reply);
+            let mut audio = Vec::new();
+            let mut chunks = 0;
+            for v in serde_json::Deserializer::from_str(&text).into_iter::<Value>() {
+                let v = v.map_err(|e| fail(format!("unreadable chunk: {e}")))?;
+                chunks += 1;
+                let code = v["code"].as_i64().unwrap_or(-1);
+                // 0 is a chunk; 20000000 is the end marker.
+                if code != 0 && code != 20_000_000 {
+                    return Err(fail(format!(
+                        "{} ({code})",
+                        v["message"].as_str().unwrap_or("error")
+                    )));
+                }
+                let piece = v["data"].as_str().unwrap_or_default();
+                audio.extend(
+                    base64_decode(piece).ok_or_else(|| fail("audio is not base64".to_string()))?,
+                );
+            }
+            if chunks == 0 {
+                return Err(fail("empty reply".to_string()));
+            }
+            if audio.is_empty() {
+                return Err(fail("no audio in the reply".to_string()));
+            }
+            Ok(Unwrapped::Bytes(audio))
         }
         Engine::Qwen => {
             let v = parse()?;
@@ -590,6 +685,97 @@ mod tests {
             unwrap_audio(Engine::ElevenLabs, b"ID3").unwrap(),
             Unwrapped::Bytes(b"ID3".to_vec())
         );
+    }
+
+    #[test]
+    fn bytedance_request_shape() {
+        let r = request(
+            Engine::ByteDance,
+            "seed-tts-2.0",
+            "zh_female_vv_uranus_bigtts",
+            "สวัสดี",
+            "bk",
+        )
+        .unwrap();
+        assert_eq!(
+            r.url,
+            "https://openspeech.bytedance.com/api/v3/tts/unidirectional"
+        );
+        assert!(r.headers.contains(&"X-Api-Key: bk".to_string()));
+        assert!(r
+            .headers
+            .contains(&"X-Api-Resource-Id: seed-tts-2.0".to_string()));
+        let request_id = r
+            .headers
+            .iter()
+            .find_map(|h| h.strip_prefix("X-Api-Request-Id: "))
+            .expect("a request id");
+        assert_eq!(request_id.len(), 36, "a uuid: {request_id}");
+        assert_eq!(
+            r.body,
+            json!({"req_params": {
+                "text": "สวัสดี",
+                "speaker": "zh_female_vv_uranus_bigtts",
+                "audio_params": {"format": "wav", "sample_rate": 24000},
+                "additions": "{\"enable_auto_language_recognition\":true}"
+            }})
+        );
+        // Each call gets its own id.
+        let again = request(Engine::ByteDance, "seed-tts-2.0", "v", "t", "bk").unwrap();
+        assert_ne!(again.headers, r.headers);
+    }
+
+    #[test]
+    fn bytedance_audio_arrives_as_base64_chunks() {
+        // Two chunks, newline-separated, then the end marker; "RIFF" + "WAVE".
+        let reply = concat!(
+            "{\"code\":0,\"message\":\"OK\",\"data\":\"UklGRg==\",\"sentence\":{}}\n",
+            "{\"code\":0,\"message\":\"OK\",\"data\":\"V0FWRQ==\"}\n",
+            "{\"code\":20000000,\"message\":\"OK\",\"data\":\"\",\"usage\":{\"text_words\":4}}\n"
+        );
+        assert_eq!(
+            unwrap_audio(Engine::ByteDance, reply.as_bytes()).unwrap(),
+            Unwrapped::Bytes(b"RIFFWAVE".to_vec())
+        );
+        // Chunks back to back without newlines are read the same way.
+        let packed = "{\"code\":0,\"data\":\"UklGRg==\"}{\"code\":0,\"data\":\"V0FWRQ==\"}";
+        assert_eq!(
+            unwrap_audio(Engine::ByteDance, packed.as_bytes()).unwrap(),
+            Unwrapped::Bytes(b"RIFFWAVE".to_vec())
+        );
+        let bad = "{\"code\":45000001,\"message\":\"invalid speaker\",\"data\":\"\"}";
+        let err = unwrap_audio(Engine::ByteDance, bad.as_bytes()).unwrap_err();
+        assert!(err.to_string().contains("invalid speaker"), "{err}");
+        let empty = "{\"code\":0,\"data\":\"\"}";
+        assert!(
+            unwrap_audio(Engine::ByteDance, empty.as_bytes()).is_err(),
+            "no audio is an error"
+        );
+    }
+
+    #[test]
+    fn bytedance_is_an_engine_with_its_own_key() {
+        assert_eq!(Engine::parse("ByteDance").unwrap(), Engine::ByteDance);
+        assert_eq!(
+            Engine::parse("doubao").unwrap(),
+            Engine::ByteDance,
+            "the voices' brand name works too"
+        );
+        assert_eq!(Engine::ByteDance.key_var(), Some("VOLCENGINE_API_KEY"));
+        assert_eq!(Engine::ByteDance.default_model(), "seed-tts-2.0");
+    }
+
+    #[test]
+    fn base64_decodes_the_standard_alphabet() {
+        assert_eq!(base64_decode("aGVsbG8gd29ybGQ=").unwrap(), b"hello world");
+        assert_eq!(
+            base64_decode("aGVsbG8gd29ybGQ").unwrap(),
+            b"hello world",
+            "padding optional"
+        );
+        assert_eq!(base64_decode("+/8=").unwrap(), [0xFB, 0xFF]);
+        assert_eq!(base64_decode("").unwrap(), b"");
+        assert!(base64_decode("not base64!").is_none());
     }
 
     #[test]

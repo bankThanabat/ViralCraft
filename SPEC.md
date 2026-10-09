@@ -88,8 +88,8 @@ viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
 viralcraft assets <RUN_DIR> [--assets DIR]   # optional rebuild: read the user's clips
 viralcraft prompt <RUN_DIR> [--script FILE] [--no-captions]
                                         # optional rebuild: REBUILD-PROMPT.md
-viralcraft voiceover <RUN_DIR> --script FILE [--engine say|openai|elevenlabs|minimax|qwen]
-                                [--voice V] [--model M]
+viralcraft voiceover <RUN_DIR> --script FILE [--voice V] [--model M]
+                                [--engine say|openai|elevenlabs|minimax|qwen|bytedance]
                                         # optional rebuild: AI voice per caption
 viralcraft clean <RUN_DIR>              # delete frames/ and source.cfr.mp4
 viralcraft ingest [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
@@ -513,9 +513,13 @@ viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnosti
   `elevenlabs` (eleven_v3, which has Thai), `minimax` (speech-2.8-hd, Thai
   among its languages; the audio comes back as hex inside JSON) or `qwen`
   (qwen3-tts-flash on Alibaba Model Studio's Singapore endpoint, no Thai
-  setting; the audio comes back as a link good for a day). Keys come from
-  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `MINIMAX_API_KEY` or
-  `DASHSCOPE_API_KEY` and reach curl on stdin, never its command line. `voiceover.json` records each line's caption, start
+  setting; the audio comes back as a link good for a day) or `bytedance`
+  (Doubao speech model 2.0 on Volcengine's V3 endpoint, Thai among its
+  languages with automatic language detection on; the audio streams as
+  JSON chunks of base64 that are joined). Keys come from
+  `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `MINIMAX_API_KEY`,
+  `DASHSCOPE_API_KEY` or `VOLCENGINE_API_KEY` and reach curl on stdin,
+  never its command line. `voiceover.json` records each line's caption, start
   frame, length and whether it ends before the next caption; the prompt
   places the lines and uses their text as the captions, and refuses a
   voiceover made from a different script.

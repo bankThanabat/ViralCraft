@@ -89,6 +89,12 @@ fn qwen_speaks_one_file_per_caption() {
     speak(Engine::Qwen);
 }
 
+#[test]
+#[ignore = "needs VOLCENGINE_API_KEY (Doubao speech, API Key management in the console)"]
+fn bytedance_speaks_one_file_per_caption() {
+    speak(Engine::ByteDance);
+}
+
 fn which(tool: &str) -> bool {
     std::process::Command::new("which")
         .arg(tool)

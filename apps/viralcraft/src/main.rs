@@ -94,8 +94,9 @@ enum Command {
         #[arg(long)]
         script: PathBuf,
         /// say (free, the system's own voices); or openai, elevenlabs,
-        /// minimax or qwen with your own key in OPENAI_API_KEY,
-        /// ELEVENLABS_API_KEY, MINIMAX_API_KEY or DASHSCOPE_API_KEY.
+        /// minimax, qwen or bytedance with your own key in OPENAI_API_KEY,
+        /// ELEVENLABS_API_KEY, MINIMAX_API_KEY, DASHSCOPE_API_KEY or
+        /// VOLCENGINE_API_KEY.
         #[arg(long, default_value = "say")]
         engine: String,
         #[arg(long)]
