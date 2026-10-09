@@ -56,8 +56,9 @@ User stories:
     `text-recognition.rten` (9.7 MB), from
     `https://ocrs-models.s3-accelerate.amazonaws.com/`. `doctor` downloads
     them on request to `~/.cache/viralcraft/` and checks their SHA-256. The
-    default models read the Latin alphabet only, so non-Latin captions come
-    back `unknown` with the box still reported.
+    default models read the Latin alphabet only. Non-Latin captions come
+    back as garbage Latin letters with the box, timing and style still
+    right; the agent reads the real text from the frames.
   - `tracing`, `tracing-subscriber` for logs
 - Shot detection, frame extraction, audio extraction and the raw audio envelope
   come from `ffmpeg` filters (`scdet`, `select`, `showinfo`, `astats`), driven
@@ -677,6 +678,20 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
   PyTorch only) because it runs today; one function wraps it so it can be
   swapped. On the first real clip it found `[whoosh] [thunk]` on the
   punchline cut and misnamed a jingle `[car alarm]`. Decided 2026-10-09.
+- **Other languages use an optional multilingual whisper model.** The
+  user picks one size at `doctor --install`: small (0.5 GB), medium
+  (1.5 GB) or large-v3 (3.1 GB). `audio` uses the biggest one installed,
+  lets it detect the language and writes it to `audio.json` as
+  `language`. Speech it finds to be English is transcribed again with
+  tiny.en, because tiny.en's word timing is the one measured above (small
+  started "scrolling" 6 frames early on the same fixture). Tokens keep
+  their raw bytes until a word is complete: whisper splits Thai characters
+  across tokens. large-v3-turbo is about the size of medium and better;
+  it can replace medium if wanted. Decided with the user 2026-10-09.
+- **The agent reads non-Latin caption text.** The ocrs models read the
+  Latin alphabet only; on Thai they return confident garbage. Boxes,
+  timing, colours and style are still measured, and the agent reads the
+  words from the frames during review. Decided with the user 2026-10-09.
 - **An optional rebuild step joins v1.** Core stays analyze, review,
   finalize; a rebuild prompt plus a FilmCraft editor skill builds the
   format from the user's clips. Decided with the user 2026-10-09.
