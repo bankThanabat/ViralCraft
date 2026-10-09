@@ -1,0 +1,10 @@
+# Build output
+/target/
+
+# Run inputs and outputs (user videos, frames, analysis runs)
+/inbox/
+/out/
+
+# Local noise
+.DS_Store
+/logs/
