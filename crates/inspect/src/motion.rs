@@ -19,6 +19,8 @@ const STEP: f64 = 0.01;
 const STEPS: i32 = 3;
 /// Changes smaller than this (percent scale, normalized position) are noise.
 const STATIC_SCALE: f64 = 1.0;
+/// Scale movement (percent) below this that returns is estimate noise.
+const WOBBLE: f64 = 3.0;
 const STATIC_POSITION: f64 = 0.005;
 
 /// A grayscale image as floats.
@@ -371,33 +373,54 @@ fn progress_of(values: &[f64]) -> Vec<(f64, f64)> {
         .collect()
 }
 
+/// Scale curve to keyframes. Under `WOBBLE` of movement that ends where it
+/// began is one keyframe (estimate noise from moving subjects); a swing
+/// that comes back gets a keyframe at its peak; otherwise first and last.
+fn scale_keyframes(scales: &[f64], start: i64) -> Vec<Keyframe<f64>> {
+    let last = scales.len() - 1;
+    let first = scales[0];
+    let (peak, peak_dev) = scales
+        .iter()
+        .enumerate()
+        .map(|(i, s)| (i, (s - first).abs()))
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .unwrap_or((0, 0.0));
+    let end_dev = (scales[last] - first).abs();
+
+    let still = |t: i64, s: f64| Keyframe {
+        t,
+        s: round(s, 1),
+        o: None,
+        i: None,
+    };
+    if peak_dev < WOBBLE && end_dev < STATIC_SCALE {
+        return vec![still(start, first)];
+    }
+    let segment = |from: usize, to: usize| {
+        let (o, i) = fit_ease(&progress_of(&scales[from..=to]));
+        Keyframe {
+            t: start + from as i64,
+            s: round(scales[from], 1),
+            o: Some(o),
+            i: Some(i),
+        }
+    };
+    let returns = peak > 0 && peak < last && (scales[peak] - scales[last]).abs() >= WOBBLE;
+    if returns && peak_dev >= WOBBLE {
+        vec![
+            segment(0, peak),
+            segment(peak, last),
+            still(start + last as i64, scales[last]),
+        ]
+    } else {
+        vec![segment(0, last), still(start + last as i64, scales[last])]
+    }
+}
+
 fn keyframes(fits: &[FrameFit], start: i64) -> Transform {
     let last = (fits.len() - 1) as i64;
     let scales: Vec<f64> = fits.iter().map(|f| f.scale * 100.0).collect();
-    let scale = if scales.iter().all(|s| (s - scales[0]).abs() < STATIC_SCALE) {
-        vec![Keyframe {
-            t: start,
-            s: round(scales[0], 1),
-            o: None,
-            i: None,
-        }]
-    } else {
-        let (o, i) = fit_ease(&progress_of(&scales));
-        vec![
-            Keyframe {
-                t: start,
-                s: round(scales[0], 1),
-                o: Some(o),
-                i: Some(i),
-            },
-            Keyframe {
-                t: start + last,
-                s: round(scales[last as usize], 1),
-                o: None,
-                i: None,
-            },
-        ]
-    };
+    let scale = scale_keyframes(&scales, start);
 
     let positions: Vec<[f64; 2]> = fits.iter().map(|f| [0.5 + f.dx, 0.5 + f.dy]).collect();
     let end = positions[last as usize];
@@ -558,6 +581,45 @@ mod tests {
         let m = estimate_shot(&frames, 0);
         assert!(m.confidence < 0.3, "confidence {}", m.confidence);
         assert!(m.transform.is_none());
+    }
+
+    fn fits(scales: &[f64]) -> Vec<FrameFit> {
+        scales
+            .iter()
+            .map(|&scale| FrameFit {
+                scale,
+                dx: 0.0,
+                dy: 0.0,
+                peak: 0.9,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_shot_that_wobbles_but_ends_where_it_started_is_one_keyframe() {
+        // An animated character nudges the estimate by a percent or two.
+        let scales: Vec<f64> = (0..60)
+            .map(|f| 1.0 + 0.018 * ((f as f64) / 6.0).sin())
+            .chain([1.0])
+            .collect();
+        let t = keyframes(&fits(&scales), 34);
+        assert_eq!(t.scale.len(), 1, "{:?}", t.scale);
+        assert_eq!(t.scale[0].t, 34);
+    }
+
+    #[test]
+    fn a_zoom_in_and_back_out_keeps_its_peak() {
+        let scales: Vec<f64> = (0..=60)
+            .map(|f| 1.0 + 0.15 * (std::f64::consts::PI * f as f64 / 60.0).sin())
+            .collect();
+        let t = keyframes(&fits(&scales), 0);
+        let values: Vec<(i64, f64)> = t.scale.iter().map(|k| (k.t, k.s)).collect();
+        assert_eq!(values.len(), 3, "{values:?}");
+        assert_eq!(values[1].0, 30);
+        assert!(
+            (values[1].1 - 115.0).abs() < 0.5 && (values[2].1 - 100.0).abs() < 0.5,
+            "{values:?}"
+        );
     }
 
     #[test]
