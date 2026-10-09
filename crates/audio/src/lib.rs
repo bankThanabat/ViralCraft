@@ -58,18 +58,20 @@ pub enum AudioError {
 pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
     let probe: Probe = read_json(&run_dir.join(ingest::PROBE_FILE))?;
     let rate = probe.rate;
-    let (words, rhythm, beds, named) = match &probe.audio {
+    let (words, language, rhythm, beds, named) = match &probe.audio {
         None => (
             Vec::new(),
+            String::new(),
             rhythm::analyze(&[], 16_000),
             Vec::new(),
             Vec::new(),
         ),
         Some(info) => {
             let samples = extract_16k_mono(run_dir, &probe.file)?;
-            let words = transcribe(&samples, rate, info.offset)?;
+            let (words, language) = transcribe(&samples, rate, info.offset)?;
             (
                 words,
+                language,
                 rhythm::analyze(&samples, 16_000),
                 bed::bed_spans(&samples, 16_000),
                 name_sounds(&samples, rate, info.offset)?,
@@ -123,6 +125,7 @@ pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
         rate,
         speech: words::speech_spans(&words, SPEECH_GAP_S),
         transcript: words::transcript(&words, &sounds),
+        language,
         words,
         tempo: Tempo {
             bpm: rhythm.tempo.bpm,
@@ -141,13 +144,77 @@ pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
 
 /// Transcribes 16 kHz mono samples. Word times land on the video clock at
 /// `rate`, shifted by the audio `offset` from `probe.json`.
+/// Multilingual whisper models, biggest first, with their DTW presets.
+const MULTILINGUAL: [&str; 3] = ["ggml-large-v3.bin", "ggml-medium.bin", "ggml-small.bin"];
+
+/// Which whisper model to use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelChoice {
+    pub file: &'static str,
+    /// Multilingual models detect the language; the default is English only.
+    pub multilingual: bool,
+}
+
+/// The biggest installed multilingual model, else the English-only one.
+pub fn pick_model(models_dir: &Path) -> ModelChoice {
+    MULTILINGUAL
+        .iter()
+        .find(|f| models_dir.join(f).exists())
+        .map_or(
+            ModelChoice {
+                file: WHISPER_MODEL,
+                multilingual: false,
+            },
+            |f| ModelChoice {
+                file: f,
+                multilingual: true,
+            },
+        )
+}
+
+fn dtw_preset(file: &str) -> DtwModelPreset {
+    match file {
+        "ggml-large-v3.bin" => DtwModelPreset::LargeV3,
+        "ggml-medium.bin" => DtwModelPreset::Medium,
+        "ggml-small.bin" => DtwModelPreset::Small,
+        _ => DtwModelPreset::TinyEn,
+    }
+}
+
+/// Whether to transcribe again with the English-only model. Its word
+/// timing is calibrated against ground truth; the multilingual models start
+/// words up to six frames early on the same English fixture.
+pub fn rerun_in_english(choice: &ModelChoice, language: &str, english_installed: bool) -> bool {
+    choice.multilingual && language == "en" && english_installed
+}
+
+/// Transcribes 16 kHz mono samples and returns the words and the language
+/// (`en` with the English-only model; detected with a multilingual one).
 pub fn transcribe(
     samples: &[f32],
     rate: Fps,
     offset: RationalTime,
-) -> Result<Vec<Word>, AudioError> {
+) -> Result<(Vec<Word>, String), AudioError> {
     whisper_rs::install_logging_hooks();
-    let model_path = doctor::default_models_dir().join(WHISPER_MODEL);
+    let models_dir = doctor::default_models_dir();
+    let mut choice = pick_model(&models_dir);
+    let (mut tokens, language) = whisper(samples, &models_dir, &choice)?;
+    if rerun_in_english(&choice, &language, models_dir.join(WHISPER_MODEL).exists()) {
+        choice = ModelChoice {
+            file: WHISPER_MODEL,
+            multilingual: false,
+        };
+        tokens = whisper(samples, &models_dir, &choice)?.0;
+    }
+    Ok((words::tokens_to_words(&tokens, rate, offset), language))
+}
+
+fn whisper(
+    samples: &[f32],
+    models_dir: &Path,
+    choice: &ModelChoice,
+) -> Result<(Vec<words::RawToken>, String), AudioError> {
+    let model_path = models_dir.join(choice.file);
     let model = model_path
         .to_str()
         .filter(|_| model_path.exists())
@@ -156,7 +223,7 @@ pub fn transcribe(
     let mut ctx_params = WhisperContextParameters::default();
     ctx_params.dtw_parameters(DtwParameters {
         mode: DtwMode::ModelPreset {
-            model_preset: DtwModelPreset::TinyEn,
+            model_preset: dtw_preset(choice.file),
         },
         ..DtwParameters::default()
     });
@@ -165,7 +232,7 @@ pub fn transcribe(
     let mut state = ctx.create_state()?;
 
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-    params.set_language(Some("en"));
+    params.set_language(Some(if choice.multilingual { "auto" } else { "en" }));
     params.set_token_timestamps(true);
     params.set_print_progress(false);
     params.set_print_realtime(false);
@@ -181,7 +248,7 @@ pub fn transcribe(
             };
             let data = token.token_data();
             tokens.push(words::RawToken {
-                text: token.to_str_lossy()?.into_owned(),
+                bytes: token.to_bytes()?.to_vec(),
                 t0: data.t0,
                 t1: data.t1,
                 t_dtw: data.t_dtw,
@@ -190,7 +257,14 @@ pub fn transcribe(
             });
         }
     }
-    Ok(words::tokens_to_words(&tokens, rate, offset))
+    let language = if choice.multilingual {
+        whisper_rs::get_lang_str(state.full_lang_id_from_state())
+            .unwrap_or("unknown")
+            .to_string()
+    } else {
+        "en".to_string()
+    };
+    Ok((tokens, language))
 }
 
 /// Names non-speech sounds with YAMNet when its optional model is
@@ -290,4 +364,54 @@ fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, AudioErro
         path: path.to_path_buf(),
         source,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dir_with(files: &[&str]) -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        for f in files {
+            std::fs::write(dir.path().join(f), b"").unwrap();
+        }
+        dir
+    }
+
+    #[test]
+    fn without_a_multilingual_model_english_is_used() {
+        let dir = dir_with(&["ggml-tiny.en.bin"]);
+        let choice = pick_model(dir.path());
+        assert_eq!(choice.file, "ggml-tiny.en.bin");
+        assert!(!choice.multilingual);
+    }
+
+    #[test]
+    fn english_detected_by_a_multilingual_model_reruns_on_the_english_model() {
+        let small = ModelChoice {
+            file: "ggml-small.bin",
+            multilingual: true,
+        };
+        let tiny = ModelChoice {
+            file: WHISPER_MODEL,
+            multilingual: false,
+        };
+        assert!(rerun_in_english(&small, "en", true));
+        assert!(!rerun_in_english(&small, "th", true));
+        assert!(
+            !rerun_in_english(&small, "en", false),
+            "nothing to rerun with"
+        );
+        assert!(!rerun_in_english(&tiny, "en", true), "already English-only");
+    }
+
+    #[test]
+    fn the_biggest_multilingual_model_installed_wins() {
+        let dir = dir_with(&["ggml-tiny.en.bin", "ggml-small.bin", "ggml-medium.bin"]);
+        let choice = pick_model(dir.path());
+        assert_eq!(choice.file, "ggml-medium.bin");
+        assert!(choice.multilingual);
+        let dir = dir_with(&["ggml-tiny.en.bin", "ggml-small.bin", "ggml-large-v3.bin"]);
+        assert_eq!(pick_model(dir.path()).file, "ggml-large-v3.bin");
+    }
 }

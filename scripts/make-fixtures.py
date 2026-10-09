@@ -278,6 +278,28 @@ def make_speech(tmp):
     return meta
 
 
+# A Thai sentence for the multilingual speech check, spoken by macOS's
+# Thai voice. Rebuilt only with --speech, like speech.wav.
+THAI_TEXT = "สวัสดีค่ะ วันนี้เราจะมาทำมัทฉะลาเต้กัน"
+
+
+def make_thai_speech(tmp):
+    path = os.path.join(OUT, "speech-th.wav")
+    meta_path = os.path.join(OUT, "speech-th.json")
+    if "--speech" not in sys.argv and os.path.exists(meta_path):
+        with open(meta_path) as f:
+            return json.load(f)
+    if shutil.which("say") is None:
+        sys.exit("speech-th.wav needs macOS `say` with the Kanya voice")
+    aiff = os.path.join(tmp, "th.aiff")
+    subprocess.run(["say", "-v", "Kanya", "-o", aiff, THAI_TEXT], check=True)
+    ffmpeg("-i", aiff, "-ar", str(SPEECH_RATE), "-ac", "1", "-c:a", "pcm_s16le", path)
+    meta = {"file": "speech-th.wav", "language": "th", "text": THAI_TEXT}
+    with open(meta_path, "w") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=2)
+    return meta
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
@@ -285,6 +307,7 @@ def main():
             "cuts": make_cuts(tmp),
             "zoom": make_zoom(tmp),
             "speech": make_speech(tmp),
+            "speech_th": make_thai_speech(tmp),
         }
     with open(os.path.join(OUT, "fixtures.json"), "w") as f:
         json.dump(fixtures, f, indent=2)

@@ -12,6 +12,10 @@ pub struct Audio {
     pub rate: Fps,
     /// Transcribed words on the video clock.
     pub words: Vec<Word>,
+    /// Spoken language, e.g. `en` or `th`: detected by a multilingual
+    /// model, `en` with the English-only one, empty without audio.
+    #[serde(default)]
+    pub language: String,
     /// Words and named sounds in time order, sounds in brackets:
     /// `here it goes! [whoosh] [thump]`.
     pub transcript: String,

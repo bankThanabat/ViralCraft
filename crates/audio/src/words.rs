@@ -7,7 +7,9 @@ use model::{Fps, RationalTime, SoundEvent, TimeRange, Word};
 /// when DTW alignment produced no time.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RawToken {
-    pub text: String,
+    /// Raw UTF-8 bytes. Whisper's tokens are byte pieces, so one token can
+    /// hold half a Thai character; decode only after joining a whole word.
+    pub bytes: Vec<u8>,
     pub t0: i64,
     pub t1: i64,
     pub t_dtw: i64,
@@ -20,7 +22,7 @@ pub struct RawToken {
 const FALLBACK_CONFIDENCE: f32 = 0.3;
 
 struct Building {
-    text: String,
+    bytes: Vec<u8>,
     /// First token's coarse start.
     t0: i64,
     /// Last token's coarse end.
@@ -42,17 +44,17 @@ pub fn tokens_to_words(tokens: &[RawToken], rate: Fps, offset: RationalTime) -> 
     let mut built: Vec<Building> = Vec::new();
     for t in tokens.iter().filter(|t| !t.special) {
         let dtw = (t.t_dtw >= 0).then_some(t.t_dtw);
-        let opens_word = t.text.starts_with(' ') || built.is_empty();
-        if opens_word && !t.text.trim().is_empty() {
+        let opens_word = t.bytes.first() == Some(&b' ') || built.is_empty();
+        if opens_word && !t.bytes.trim_ascii().is_empty() {
             built.push(Building {
-                text: t.text.trim().to_string(),
+                bytes: t.bytes.trim_ascii().to_vec(),
                 t0: t.t0,
                 t1: t.t1,
                 dtw_end: dtw,
                 probs: vec![t.p],
             });
         } else if let Some(w) = built.last_mut() {
-            w.text.push_str(t.text.trim());
+            w.bytes.extend_from_slice(t.bytes.trim_ascii());
             w.t1 = w.t1.max(t.t1);
             w.dtw_end = w.dtw_end.max(dtw);
             w.probs.push(t.p);
@@ -75,7 +77,7 @@ pub fn tokens_to_words(tokens: &[RawToken], rate: Fps, offset: RationalTime) -> 
                 FALLBACK_CONFIDENCE
             };
             Word {
-                text: w.text,
+                text: String::from_utf8_lossy(&w.bytes).into_owned(),
                 start,
                 duration: RationalTime::from_frames((end.value - start.value).max(1), rate),
                 confidence,
@@ -166,7 +168,7 @@ mod tests {
 
     fn tok(text: &str, t0: i64, t1: i64, t_dtw: i64) -> RawToken {
         RawToken {
-            text: text.to_string(),
+            bytes: text.as_bytes().to_vec(),
             t0,
             t1,
             t_dtw,
@@ -210,6 +212,26 @@ mod tests {
         // scrolling: t0 0.40 s is before Stop ends, so it starts at f18;
         // its last DTW time 1.20 s → f36.
         assert_eq!(span(&words[1]), (18, 36));
+    }
+
+    #[test]
+    fn a_character_split_across_tokens_is_joined_before_decoding() {
+        // Whisper's byte-level tokens can split one Thai character (3 bytes
+        // in UTF-8) across two tokens; decoding each token alone broke it.
+        let word = "มัทฉะ".as_bytes();
+        let mut first = b" ".to_vec();
+        first.extend_from_slice(&word[..2]);
+        let a = RawToken {
+            bytes: first,
+            ..tok("", 10, 20, 15)
+        };
+        let b = RawToken {
+            bytes: word[2..].to_vec(),
+            ..tok("", 20, 40, 35)
+        };
+        let words = tokens_to_words(&[a, b], FPS30, zero());
+        assert_eq!(words.len(), 1);
+        assert_eq!(words[0].text, "มัทฉะ");
     }
 
     #[test]

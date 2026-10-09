@@ -14,7 +14,7 @@ fn fixtures() -> &'static Path {
 fn speech_fixture_words_start_within_3_frames_of_ground_truth() {
     let rate = Fps::new(30, 1).unwrap();
     let samples = audio::read_wav_16k_mono(&fixtures().join("speech.wav")).unwrap();
-    let words = audio::transcribe(&samples, rate, RationalTime::from_frames(0, rate)).unwrap();
+    let (words, _) = audio::transcribe(&samples, rate, RationalTime::from_frames(0, rate)).unwrap();
 
     let truth: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(fixtures().join("speech.json")).unwrap())
@@ -85,4 +85,35 @@ fn cuts_3_click_track_gives_120_bpm_and_beats_every_15_frames() {
         assert!(a.transcript.contains("[tick]"), "{}", a.transcript);
     }
     assert!(a.words.is_empty());
+}
+
+#[test]
+#[ignore = "needs a multilingual whisper model (viralcraft doctor --install)"]
+fn thai_speech_is_detected_and_transcribed_in_thai() {
+    let models = doctor::default_models_dir();
+    if !["ggml-small.bin", "ggml-medium.bin", "ggml-large-v3.bin"]
+        .iter()
+        .any(|m| models.join(m).exists())
+    {
+        eprintln!("skipping: no multilingual model installed");
+        return;
+    }
+    let rate = Fps::new(30, 1).unwrap();
+    let samples = audio::read_wav_16k_mono(&fixtures().join("speech-th.wav")).unwrap();
+    let (words, language) =
+        audio::transcribe(&samples, rate, RationalTime::from_frames(0, rate)).unwrap();
+    let text: String = words
+        .iter()
+        .map(|w| w.text.as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    eprintln!("{language}: {text}");
+    assert_eq!(language, "th");
+    let thai = text
+        .chars()
+        .filter(|c| ('\u{0E00}'..='\u{0E7F}').contains(c))
+        .count();
+    assert!(thai >= 15, "expected Thai script, got {text:?}");
+    assert!(text.contains("สวัสดี"), "{text}");
+    assert!(!text.contains('\u{FFFD}'), "broken characters in {text}");
 }
