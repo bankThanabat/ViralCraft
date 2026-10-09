@@ -115,6 +115,8 @@ fn path_str(p: &Path) -> &str {
 /// Reads every clip in `folder` into `<run_dir>/rebuild/assets.json`.
 /// Writes only inside `run_dir`.
 pub fn run(run_dir: &Path, folder: &Path) -> Result<Assets, AssetsError> {
+    // Absolute, because ffmpeg runs inside the run directory for the audio.
+    let folder = &fs::canonicalize(folder).map_err(io_err(folder))?;
     let clips = find_clips(folder)?;
     if clips.is_empty() {
         return Err(AssetsError::NoClips(folder.to_path_buf()));

@@ -25,8 +25,12 @@ fn snapshot(dir: &Path) -> Vec<(String, Vec<u8>)> {
 #[test]
 #[ignore = "needs ffmpeg and the whisper model"]
 fn clips_are_probed_transcribed_and_thumbnailed_and_left_untouched() {
-    let tmp = tempfile::tempdir().unwrap();
-    let assets = tmp.path().join("assets");
+    // A relative folder, like the default `assets`: cargo runs this test
+    // from the package root, so a temp dir inside it can be named relatively.
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let tmp = tempfile::tempdir_in(root).unwrap();
+    let assets = tmp.path().strip_prefix(root).unwrap().join("assets");
+    assert!(assets.is_relative());
     let run_dir = tmp.path().join("run");
     fs::create_dir_all(&assets).unwrap();
     fs::create_dir_all(&run_dir).unwrap();
