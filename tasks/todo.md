@@ -4,7 +4,7 @@ Plan: `tasks/plan.md`. Spec: `SPEC.md`. One commit per task.
 
 ## Phase 1: Foundation
 
-## Task 1: Workspace skeleton and shared types
+## Task 1: Workspace skeleton and shared types ✅ done
 
 **Description:** `git init`, Cargo workspace, `crates/model` with the versioned
 time types every JSON file uses (`RationalTime`, `TimeRange`, `Fps` as a
@@ -12,14 +12,14 @@ rational), `apps/viralcraft` with clap and a `doctor` subcommand that only
 prints the JSON summary line. `.gitignore` for `target/`, `inbox/`, `out/`.
 
 **Acceptance criteria:**
-- [ ] `RationalTime::from_frames(54, Fps::new(30000, 1001)).to_seconds()` is `1.8018` within 1e-6, and the serde form is `{"value":54,"rate":{"num":30000,"den":1001}}`
-- [ ] `TimeRange` end is exclusive: a range starting at f0 with duration 54 does not contain f54
-- [ ] `viralcraft doctor` prints one JSON line on stdout and exits 0
+- [x] `RationalTime::from_frames(54, Fps::new(30000, 1001)).to_seconds()` is `1.8018` within 1e-6, and the serde form is `{"value":54,"rate":{"num":30000,"den":1001}}`
+- [x] `TimeRange` end is exclusive: a range starting at f0 with duration 54 does not contain f54
+- [x] `viralcraft doctor` prints one JSON line on stdout and exits 0
 
 **Verification:**
-- [ ] Tests pass: `cargo test --workspace`
-- [ ] Build succeeds: `cargo build --release`
-- [ ] Lint clean: `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] Tests pass: `cargo test --workspace`
+- [x] Build succeeds: `cargo build --release`
+- [x] Lint clean: `cargo clippy --workspace --all-targets -- -D warnings`
 
 **Dependencies:** None
 

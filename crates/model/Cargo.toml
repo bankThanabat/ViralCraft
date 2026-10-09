@@ -1,0 +1,14 @@
+[package]
+name = "model"
+description = "Shared serde types for every ViralCraft run-directory file"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
