@@ -1,5 +1,6 @@
 //! `audio`: words with timing from whisper, plus beats, tempo and onsets.
 
+pub mod bed;
 pub mod rhythm;
 pub mod words;
 
@@ -7,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use model::tools::{self, ToolError};
-use model::{Audio, AudioEvent, Fps, Probe, RationalTime, Tempo, TimeRange, Word};
+use model::{Audio, AudioEvent, Fps, MusicSpan, Probe, RationalTime, Tempo, TimeRange, Word};
 use whisper_rs::{
     DtwMode, DtwModelPreset, DtwParameters, FullParams, SamplingStrategy, WhisperContext,
     WhisperContextParameters,
@@ -48,32 +49,58 @@ pub enum AudioError {
 pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
     let probe: Probe = read_json(&run_dir.join(ingest::PROBE_FILE))?;
     let rate = probe.rate;
-    let (words, rhythm) = match &probe.audio {
-        None => (Vec::new(), rhythm::analyze(&[], 16_000)),
+    let (words, rhythm, beds) = match &probe.audio {
+        None => (Vec::new(), rhythm::analyze(&[], 16_000), Vec::new()),
         Some(info) => {
             let samples = extract_16k_mono(run_dir, &probe.file)?;
             let words = transcribe(&samples, rate, info.offset)?;
-            (words, rhythm::analyze(&samples, 16_000))
+            (
+                words,
+                rhythm::analyze(&samples, 16_000),
+                bed::bed_spans(&samples, 16_000),
+            )
         }
     };
+    let (words, sounds) = words::split_sound_tags(words);
     let offset_s = probe.audio.as_ref().map_or(0.0, |a| a.offset.to_seconds());
+    let at = |s: f64| RationalTime::from_seconds(s + offset_s, rate);
     let event = |e: &rhythm::Event| AudioEvent {
-        time: RationalTime::from_seconds(e.time + offset_s, rate),
+        time: at(e.time),
         confidence: e.confidence,
     };
     let beats: Vec<AudioEvent> = rhythm.beats.iter().map(event).collect();
-    let music = match (beats.first(), beats.last()) {
+
+    let beat_span = match (beats.first(), beats.last()) {
         (Some(first), Some(last)) if rhythm.tempo.confidence >= MUSIC_CONFIDENCE => {
             let period = RationalTime::from_seconds(60.0 / rhythm.tempo.bpm, rate).value;
-            let end = (last.time.value + period).min(probe.frames);
-            vec![TimeRange::from_frames(
+            Some((
                 first.time.value,
-                end - first.time.value,
-                rate,
-            )]
+                (last.time.value + period).min(probe.frames),
+            ))
         }
-        _ => Vec::new(),
+        _ => None,
     };
+    let mut music: Vec<MusicSpan> = beds
+        .iter()
+        .map(|b| {
+            let (start, end) = (at(b.start).value, at(b.end).value.min(probe.frames));
+            MusicSpan {
+                range: TimeRange::from_frames(start, end - start, rate),
+                level_db: Some(b.level_db),
+                beat: beat_span.is_some_and(|(s, e)| s < end && e > start),
+            }
+        })
+        .collect();
+    if let Some((s, e)) = beat_span {
+        if !music.iter().any(|m| m.beat) {
+            music.push(MusicSpan {
+                range: TimeRange::from_frames(s, e - s, rate),
+                level_db: None,
+                beat: true,
+            });
+        }
+    }
+
     let audio = Audio {
         version: 1,
         rate,
@@ -86,6 +113,7 @@ pub fn run(run_dir: &Path) -> Result<Audio, AudioError> {
         beats,
         onsets: rhythm.onsets.iter().map(event).collect(),
         music,
+        sounds,
     };
     let out = run_dir.join(AUDIO_FILE);
     let json = serde_json::to_string_pretty(&audio).expect("Audio always serializes");

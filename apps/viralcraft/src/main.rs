@@ -120,6 +120,7 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                     "tempo_confidence": (audio.tempo.confidence * 100.0).round() / 100.0,
                     "beats": audio.beats.len(),
                     "music_spans": audio.music.len(),
+                    "sounds": audio.sounds.len(),
                     "files": [run_dir.join(audio::AUDIO_FILE)],
                 }),
                 true,

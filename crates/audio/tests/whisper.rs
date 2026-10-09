@@ -73,5 +73,6 @@ fn cuts_3_click_track_gives_120_bpm_and_beats_every_15_frames() {
         );
     }
     assert_eq!(a.music.len(), 1, "one music span over the click track");
+    assert!(a.music[0].beat, "the click track has a beat");
     assert!(a.words.is_empty());
 }

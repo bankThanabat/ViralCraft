@@ -1,7 +1,7 @@
 //! Turns whisper tokens into timed words. Kept free of whisper-rs types so
 //! it can be tested with hand-built tokens.
 
-use model::{Fps, RationalTime, TimeRange, Word};
+use model::{Fps, RationalTime, SoundEvent, TimeRange, Word};
 
 /// One whisper token. Times are in whisper's centiseconds; `t_dtw` is -1
 /// when DTW alignment produced no time.
@@ -82,6 +82,29 @@ pub fn tokens_to_words(tokens: &[RawToken], rate: Fps, offset: RationalTime) -> 
             }
         })
         .collect()
+}
+
+/// Moves whisper's non-speech tags, such as `[sighs]` or `(laughs)`, out of
+/// the words and into labelled sounds.
+pub fn split_sound_tags(words: Vec<Word>) -> (Vec<Word>, Vec<SoundEvent>) {
+    let mut kept = Vec::new();
+    let mut sounds = Vec::new();
+    for w in words {
+        let t = w.text.trim();
+        let tagged =
+            (t.starts_with('[') && t.ends_with(']')) || (t.starts_with('(') && t.ends_with(')'));
+        if tagged && t.len() > 2 {
+            sounds.push(SoundEvent {
+                label: t[1..t.len() - 1].trim().to_lowercase(),
+                start: w.start,
+                duration: w.duration,
+                source: "whisper".to_string(),
+            });
+        } else {
+            kept.push(w);
+        }
+    }
+    (kept, sounds)
 }
 
 /// Merges words into speech spans, joining words separated by less than
@@ -188,6 +211,31 @@ mod tests {
         // DTW can place a word's end before its t0.
         let words = tokens_to_words(&[tok(" Hi", 50, 60, 40)], FPS30, zero());
         assert!(words[0].duration.value >= 1);
+    }
+
+    #[test]
+    fn bracketed_tags_are_sounds_not_words() {
+        let w = |text: &str, start: i64| Word {
+            text: text.into(),
+            start: RationalTime::from_frames(start, FPS30),
+            duration: RationalTime::from_frames(10, FPS30),
+            confidence: 0.8,
+        };
+        let (words, sounds) = split_sound_tags(vec![
+            w("everything.", 0),
+            w("[sighs]", 20),
+            w("Okay,", 40),
+            w("(laughs)", 60),
+        ]);
+        assert_eq!(
+            words.iter().map(|w| w.text.as_str()).collect::<Vec<_>>(),
+            ["everything.", "Okay,"]
+        );
+        let labels: Vec<(&str, i64)> = sounds
+            .iter()
+            .map(|s| (s.label.as_str(), s.start.value))
+            .collect();
+        assert_eq!(labels, [("sighs", 20), ("laughs", 60)]);
     }
 
     #[test]

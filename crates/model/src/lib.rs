@@ -11,7 +11,7 @@ pub mod shots;
 pub mod time;
 pub mod tools;
 
-pub use audio::{Audio, AudioEvent, Tempo, Word};
+pub use audio::{Audio, AudioEvent, MusicSpan, SoundEvent, Tempo, Word};
 pub use inspect::{
     Animation, BoxN, CaptionEvent, Clearance, Ease, Inspect, InspectTiming, Keyframe, Look,
     LumaStats, OverlayEvent, ShotLook, ShotMotion, Swatch, Transform,

@@ -18,9 +18,29 @@ pub struct Audio {
     /// Empty when tempo confidence is below 0.2.
     pub beats: Vec<AudioEvent>,
     pub onsets: Vec<AudioEvent>,
-    /// Stretches with a steady beat. v1 reports one span from the first to
-    /// the last beat when tempo confidence is at least 0.5.
-    pub music: Vec<TimeRange>,
+    /// Stretches with music or another continuous background bed.
+    pub music: Vec<MusicSpan>,
+    /// Labelled non-speech sounds, such as whisper's `[sighs]`.
+    pub sounds: Vec<SoundEvent>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct MusicSpan {
+    pub range: TimeRange,
+    /// Level of the bed alone in dBFS; `None` when only a beat was found.
+    pub level_db: Option<f64>,
+    /// Whether a steady beat (tempo confidence at least 0.5) runs here.
+    pub beat: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SoundEvent {
+    /// What the sound is, e.g. `sighs`.
+    pub label: String,
+    pub start: RationalTime,
+    pub duration: RationalTime,
+    /// Which detector named it, e.g. `whisper`.
+    pub source: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
