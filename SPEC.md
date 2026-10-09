@@ -125,7 +125,7 @@ out/                       → run directories (gitignored)
 source.cfr.mp4    ingest   the input re-muxed or re-encoded to constant frame rate
 probe.json        ingest   rate (rational), frames, width, height, aspect, audio offset
 shots.json        shots    segments[] and transition candidates, in frames
-frames/           shots    every frame at half resolution as JPEG (f00000.jpg ...)
+frames/           shots    every frame, 720 px on the short side, as JPEG (f00000.jpg ...)
 audio.json        audio    words[] with DTW times, beats[], tempo, onsets[], music/speech spans
 inspect.json      inspect  caption events, overlay events, transform keyframes, look stats
 EDIT-SPEC.md      editspec measured sections filled; judgement slots marked
@@ -148,10 +148,12 @@ Stage inputs are exact, and the capability map uses the same graph:
 | exports | probe, shots, audio, inspect, judgement (optional) | timeline.otio, captions.ass, captions.vtt |
 | template | probe, shots, audio, inspect, judgement | TEMPLATE.md |
 
-Every frame is extracted, not a 2 fps sample. A 60 s clip at 30 fps is 1,800
-half-resolution JPEGs, about 60 MB, which is what caption-change detection and
-motion estimation need. `frames/` is deleted by `viralcraft clean` and is never
-committed.
+Every frame is extracted, not a 2 fps sample, at 720 px on the short side
+(never upscaled). Half size was tried first; on a 720p source it left
+dialogue text 13 px tall and OCR misread it. A 60 s clip at 30 fps is 1,800
+JPEGs at 720x1280, roughly 150 to 250 MB, which caption-change detection
+and motion estimation need. `frames/` is deleted by `viralcraft clean` and
+is never committed.
 
 ## Time, position and color conventions
 
@@ -310,7 +312,8 @@ Two fps sampling misses captions that flash for ten frames, so `inspect` works
 per frame:
 
 1. Compute a text-region mask on every frame (ocrs detection only, no
-   recognition; budget under 30 ms per half-res frame, to be measured).
+   recognition; measured at 25 to 33 ms per 540x960 frame and about 62 ms
+   per 720x1280 frame).
 2. A caption event begins when a new text region appears and ends when it
    disappears; a region whose box moves or scales over its first 2..8 frames
    is tagged with that animation (pop-in, slide, fade from opacity ramp).

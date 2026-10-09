@@ -12,6 +12,8 @@ Apple Silicon, 2026-10-09:
 | `cargo test -p inspect --release` on cuts-3 | 25.2 |
 | `viralcraft inspect` on cuts-3, same machine, other work running | 33.4 |
 
+| `cargo test -p inspect --release` on cuts-3 at 720x1280 (task 11b) | 62.3 |
+
 Budget in SPEC.md was 30 ms. The two runs straddle it, so treat ~30 ms as the
 working figure: a 60 s clip at 30 fps spends 45 to 60 s in detection.
 Fallback if that is too slow on real clips: detect every 3rd frame and

@@ -45,7 +45,7 @@ fn cuts_3_has_three_shots_and_every_frame_on_disk() {
     assert!(run_dir.join(shots::frame_path(0)).exists());
     assert!(run_dir.join(shots::frame_path(179)).exists());
     let first = image_size(&run_dir.join(shots::frame_path(0)));
-    assert_eq!(first, (540, 960), "frames are half resolution");
+    assert_eq!(first, (720, 1280), "frames are 720 px on the short side");
 }
 
 #[test]

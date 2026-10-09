@@ -13,8 +13,21 @@ pub const FRAMES_DIR: &str = "frames";
 /// scdet's own default on its 0..100 scale.
 pub const DEFAULT_THRESHOLD: f64 = 10.0;
 
+/// Short side of extracted frames. At half size a 720p source left 13 px
+/// dialogue text, too small to read reliably; 720 keeps it legible.
+pub const FRAME_SHORT_SIDE: u32 = 720;
+
+/// Extracted frame size for a `width` x `height` source: the short side
+/// becomes 720 px, never upscaled, both sides even.
+pub fn frame_size(width: u32, height: u32) -> (u32, u32) {
+    let short = width.min(height).max(1);
+    let factor = (f64::from(FRAME_SHORT_SIDE) / f64::from(short)).min(1.0);
+    let even = |v: u32| ((f64::from(v) * factor / 2.0).round() as u32 * 2).max(2);
+    (even(width), even(height))
+}
+
 /// Where frame `n` of the normalized source is stored, relative to the run
-/// directory. Frames are half resolution, numbered from 0.
+/// directory. Numbered from 0; sized by [`frame_size`].
 pub fn frame_path(n: u64) -> PathBuf {
     Path::new(FRAMES_DIR).join(format!("f{n:05}.jpg"))
 }
@@ -53,6 +66,7 @@ pub fn run_with_threshold(run_dir: &Path, threshold: f64) -> Result<Shots, Shots
     fs::create_dir_all(&frames_dir).map_err(|source| io(&frames_dir, source))?;
 
     const STATS: &str = "scdet.txt";
+    let (fw, fh) = frame_size(probe.width, probe.height);
     let pattern = Path::new(FRAMES_DIR).join("f%05d.jpg");
     tools::run_in(
         run_dir,
@@ -65,7 +79,7 @@ pub fn run_with_threshold(run_dir: &Path, threshold: f64) -> Result<Shots, Shots
             &probe.file,
             "-an",
             "-vf",
-            &format!("signalstats,scdet=threshold=0,metadata=print:file={STATS},scale=iw/2:ih/2"),
+            &format!("signalstats,scdet=threshold=0,metadata=print:file={STATS},scale={fw}:{fh}"),
             "-fps_mode",
             "passthrough",
             "-q:v",
@@ -100,5 +114,28 @@ fn io(path: &Path, source: std::io::Error) -> ShotsError {
     ShotsError::Io {
         path: path.to_path_buf(),
         source,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frames_get_720_px_on_the_short_side() {
+        assert_eq!(frame_size(1080, 1920), (720, 1280));
+        assert_eq!(frame_size(1920, 1080), (1280, 720));
+        assert_eq!(frame_size(720, 1280), (720, 1280));
+    }
+
+    #[test]
+    fn small_sources_are_never_upscaled() {
+        assert_eq!(frame_size(540, 960), (540, 960));
+    }
+
+    #[test]
+    fn sizes_are_even_for_the_encoder() {
+        let (w, h) = frame_size(1081, 1921);
+        assert_eq!((w % 2, h % 2), (0, 0));
     }
 }
