@@ -41,6 +41,8 @@ enum Command {
     },
     /// Transcribe speech with word timing; detect beats and tempo.
     Audio { run_dir: PathBuf },
+    /// Measure captions (and later motion, look, overlays) from the frames.
+    Inspect { run_dir: PathBuf },
     /// Detect cuts, dissolves and flashes; extract every frame at half size.
     Shots {
         run_dir: PathBuf,
@@ -57,6 +59,7 @@ impl Command {
             Command::Ingest { .. } => "ingest",
             Command::Shots { .. } => "shots",
             Command::Audio { .. } => "audio",
+            Command::Inspect { .. } => "inspect",
         }
     }
 }
@@ -118,6 +121,19 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                     "beats": audio.beats.len(),
                     "music_spans": audio.music.len(),
                     "files": [run_dir.join(audio::AUDIO_FILE)],
+                }),
+                true,
+            ))
+        }
+        Command::Inspect { run_dir } => {
+            eprintln!("inspect: {}", run_dir.display());
+            let inspect = inspect::run(&run_dir)?;
+            Ok((
+                json!({
+                    "ok": true,
+                    "captions": inspect.captions.len(),
+                    "detect_ms_per_frame": inspect.timing.detect_ms_per_frame,
+                    "files": [run_dir.join(inspect::INSPECT_FILE)],
                 }),
                 true,
             ))

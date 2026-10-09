@@ -177,7 +177,7 @@ span: first to last beat when tempo confidence ≥ 0.5 (one span in v1).
 
 **Estimated scope:** M
 
-## Task 8: caption events from per-frame text detection
+## Task 8: caption events from per-frame text detection ✅ done
 
 **Description:** `crates/inspect` runs ocrs detection on every frame in a shot,
 tracks text regions across frames into caption events (appear, change,
@@ -186,17 +186,18 @@ when the masked region changes, estimates ASS-style attributes (fill color by
 the dominant bright pixel in the box, outline by the dark rim, size from box
 height over frame height, anchor from box position, alignment from box
 centering), tags animations from the first 2..8 frames (pop-in by scale,
-slide by position, fade by contrast ramp), and aligns words to transcript
-times. Measures and logs per-frame detection time.
+slide by position, fade by contrast ramp). Word alignment to the transcript
+moved to the output stage (tasks 12/13), since `inspect` does not read
+`audio.json`. Measures and logs per-frame detection time.
 
 **Acceptance criteria:**
-- [ ] Given synthetic frame sequences (text appears at f10, scales 80→100 over 4 frames, disappears at f40), the tracker emits one event `f10..f40` with `animation: pop-in 4f`
-- [ ] Two different texts in the same box at f10..f20 and f20..f30 become two events
-- [ ] Ignored test on `cuts-3.mp4`: ONE/TWO/THREE events start and end within ±1 frame of the cuts, box centers within 0.05 of `fixtures.json`, fill `#FFFFFF`, outline `#000000`
+- [x] Given synthetic frame sequences (text appears at f10, scales 80→100 over 4 frames, disappears at f40), the tracker emits one event `f10..f40` with `animation: pop-in 4f`
+- [x] Two different texts in the same box at f10..f20 and f20..f30 become two events
+- [x] Ignored test on `cuts-3.mp4`: ONE/TWO/THREE events start and end within ±1 frame of the cuts, box centers within 0.05 of `fixtures.json`, fill `#FFFFFF`, outline `#000000`
 
 **Verification:**
-- [ ] Tests pass: `cargo test -p inspect` and `-- --ignored`
-- [ ] Manual check: logged detection time per frame, recorded in `tasks/notes.md`
+- [x] Tests pass: `cargo test -p inspect` and `-- --ignored`
+- [x] Manual check: logged detection time per frame, recorded in `tasks/notes.md`
 
 **Dependencies:** 5
 

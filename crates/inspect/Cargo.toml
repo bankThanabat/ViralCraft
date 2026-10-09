@@ -1,0 +1,22 @@
+[package]
+name = "inspect"
+description = "Per-frame measurements: caption events, motion, look, overlays"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+doctor = { path = "../doctor" }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+ingest = { path = "../ingest" }
+model.workspace = true
+ocrs = "0.13"
+rten = "0.26"
+serde.workspace = true
+serde_json.workspace = true
+shots = { path = "../shots" }
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
