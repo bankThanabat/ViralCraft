@@ -84,8 +84,9 @@ viralcraft analyze [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
 viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
                                         # merge into EDIT-SPEC.md, write OTIO
                                         # metadata, captions.ass/.vtt, TEMPLATE.md
-viralcraft preview <RUN_DIR>            # preview.mp4: source with captions.ass burned on
-                                        # (needs ffmpeg with libass; doctor offers it)
+viralcraft preview <RUN_DIR>            # development only, hidden: preview.mp4 with
+                                        # captions.ass burned on (needs ffmpeg with libass;
+                                        # users are not offered it)
 viralcraft clean <RUN_DIR>              # delete frames/ and source.cfr.mp4
 viralcraft shots <RUN_DIR>              # run one stage on an existing run dir;
 viralcraft audio <RUN_DIR>              # same for ingest, inspect, editspec, exports
@@ -285,6 +286,7 @@ What each section borrows:
   centiseconds per word). `captions.ass` is the same data in that format, so
   `ffmpeg -vf ass=captions.ass` burns it onto any video for a visual check
   (needs an ffmpeg built with libass; Homebrew's `ffmpeg` is not, `ffmpeg-full` is).
+  This is a development check only; users are not asked to install it.
   Word timing in `captions.vtt` uses inline cue timestamps
   (`<00:00:01.200>word`), which is how WebVTT does word highlighting.
   Font family is reported `unknown` with an agent-chosen substitute; OCR cannot

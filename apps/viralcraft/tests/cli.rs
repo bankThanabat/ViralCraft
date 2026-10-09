@@ -234,3 +234,25 @@ fn clean_removes_frames_and_the_normalized_video_only() {
     let summary = single_json_line(&out.stdout);
     assert_eq!(summary["removed"].as_array().unwrap().len(), 2);
 }
+
+#[test]
+fn the_caption_preview_is_a_development_tool_users_are_not_offered() {
+    let dir = tempfile::tempdir().unwrap();
+    let help = viralcraft(&["--help"], dir.path());
+    let text = String::from_utf8_lossy(&help.stdout);
+    assert!(
+        text.contains("analyze") && !text.contains("preview"),
+        "{text}"
+    );
+
+    let doctor = viralcraft(&["doctor"], dir.path());
+    let summary = single_json_line(&doctor.stdout);
+    let names: Vec<&str> = summary["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["name"].as_str().unwrap())
+        .collect();
+    assert!(!names.iter().any(|n| n.contains("libass")), "{names:?}");
+    assert!(!String::from_utf8_lossy(&doctor.stderr).contains("ffmpeg-full"));
+}

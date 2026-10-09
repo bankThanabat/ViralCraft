@@ -110,11 +110,12 @@ pub const PREVIEW_FILE: &str = "preview.mp4";
 
 /// Writes `preview.mp4`: the source with `captions.ass` burned on top, so
 /// any mismatch with the original captions shows as doubled or offset
-/// text. Needs an ffmpeg with libass.
+/// text. Development only; needs an ffmpeg with libass, which users are
+/// not asked to install.
 pub fn preview(run_dir: &Path) -> anyhow::Result<(Value, bool)> {
     let Some(ffmpeg) = doctor_cmd::find_preview_ffmpeg() else {
         anyhow::bail!(
-            "previews need an ffmpeg with libass: run `viralcraft doctor --install` (on macOS: brew install ffmpeg-full)"
+            "preview is a development tool and needs an ffmpeg with libass (on macOS: brew install ffmpeg-full)"
         );
     };
     for needed in [ingest::SOURCE_FILE, exports::ASS_FILE] {

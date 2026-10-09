@@ -84,14 +84,9 @@ impl Os {
 
 /// Looks up an executable on `PATH`.
 pub type FindTool<'a> = Box<dyn Fn(&str) -> Option<PathBuf> + 'a>;
-/// Looks for an ffmpeg that can burn subtitles (has the libass `ass` filter).
-pub type FindPreview<'a> = Box<dyn Fn() -> Option<PathBuf> + 'a>;
-
-/// Name of the optional subtitle-burning ffmpeg in reports.
-pub const PREVIEW_ITEM: &str = "ffmpeg with libass";
-
-/// Places an ffmpeg with libass is commonly installed, besides `PATH`.
-/// Homebrew's `ffmpeg-full` is keg-only, so it is not on `PATH`.
+/// Development only, for the caption preview and burn-in tests (users are
+/// not offered it): places an ffmpeg with libass is commonly installed,
+/// besides `PATH`. Homebrew's `ffmpeg-full` is keg-only, so not on `PATH`.
 pub const PREVIEW_CANDIDATES: [&str; 2] = [
     "/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg",
     "/usr/local/opt/ffmpeg-full/bin/ffmpeg",
@@ -104,23 +99,11 @@ pub fn has_ass_filter(filters: &str) -> bool {
         .any(|l| l.split_whitespace().nth(1) == Some("ass"))
 }
 
-pub fn preview_fix(os: Os) -> String {
-    // Debian and Ubuntu's ffmpeg and Gyan's Windows build include libass;
-    // Homebrew's plain ffmpeg does not, ffmpeg-full does.
-    match os {
-        Os::MacOs => "brew install ffmpeg-full",
-        Os::Linux => "sudo apt-get install -y ffmpeg",
-        Os::Windows => "winget install --id Gyan.FFmpeg -e",
-    }
-    .to_string()
-}
-
 /// Where to look. Injected so tests never depend on the machine they run on.
 pub struct Env<'a> {
     pub os: Os,
     pub models_dir: &'a Path,
     pub find_tool: FindTool<'a>,
-    pub find_preview: FindPreview<'a>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -210,19 +193,6 @@ pub fn check(env: &Env, models: &[ModelSpec]) -> Report {
             purpose: "video and audio decoding".to_string(),
         });
     }
-    let preview = (env.find_preview)();
-    items.push(Item {
-        name: PREVIEW_ITEM.to_string(),
-        state: if preview.is_some() {
-            State::Present
-        } else {
-            State::Missing
-        },
-        fix: preview.is_none().then(|| preview_fix(env.os)),
-        path: preview,
-        optional: true,
-        purpose: "a caption preview video (`viralcraft preview`)".to_string(),
-    });
     for model in models {
         let path = env.models_dir.join(model.file);
         let state = model_state(model, &path);
@@ -312,11 +282,6 @@ mod tests {
                     .contains(&name)
                     .then(|| PathBuf::from(format!("/usr/bin/{name}")))
             }),
-            find_preview: Box::new(move || {
-                found
-                    .contains(&"preview")
-                    .then(|| PathBuf::from("/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg"))
-            }),
         }
     }
 
@@ -327,33 +292,6 @@ mod tests {
         assert!(has_ass_filter(with));
         assert!(!has_ass_filter(without));
         assert!(!has_ass_filter(" ... assert_something V->V nope\n"));
-    }
-
-    #[test]
-    fn a_missing_preview_ffmpeg_is_optional_and_offers_ffmpeg_full_on_macos() {
-        let dir = tempfile::tempdir().unwrap();
-        let report = check(&env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]), &[]);
-        assert!(report.ok);
-        let item = report.item(PREVIEW_ITEM).unwrap();
-        assert_eq!(item.state, State::Missing);
-        assert!(item.optional);
-        assert_eq!(item.fix.as_deref(), Some("brew install ffmpeg-full"));
-        assert_eq!(preview_fix(Os::Linux), "sudo apt-get install -y ffmpeg");
-    }
-
-    #[test]
-    fn a_found_preview_ffmpeg_is_present_with_its_path() {
-        let dir = tempfile::tempdir().unwrap();
-        let report = check(
-            &env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe", "preview"]),
-            &[],
-        );
-        let item = report.item(PREVIEW_ITEM).unwrap();
-        assert_eq!(item.state, State::Present);
-        assert_eq!(
-            item.path.as_deref(),
-            Some(Path::new("/opt/homebrew/opt/ffmpeg-full/bin/ffmpeg"))
-        );
     }
 
     #[test]
@@ -420,7 +358,7 @@ mod tests {
         fs::write(dir.path().join("m.bin"), b"weights").unwrap();
 
         let report = check(
-            &env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe", "preview"]),
+            &env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]),
             &[model],
         );
 
@@ -455,7 +393,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(asked, ["ffmpeg", "ffprobe", PREVIEW_ITEM]);
+        assert_eq!(asked, ["ffmpeg", "ffprobe"]);
         assert_eq!(ran, ["brew install ffmpeg"]);
     }
 
@@ -495,11 +433,7 @@ mod tests {
     #[test]
     fn nothing_is_offered_when_everything_is_present() {
         let dir = tempfile::tempdir().unwrap();
-        assert!(!check(
-            &env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe", "preview"]),
-            &[]
-        )
-        .has_offers());
+        assert!(!check(&env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]), &[]).has_offers());
     }
 
     #[test]

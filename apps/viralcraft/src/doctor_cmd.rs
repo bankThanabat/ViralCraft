@@ -12,7 +12,6 @@ pub fn check() -> Report {
         os: Os::current(),
         models_dir: &models_dir,
         find_tool: Box::new(|name| which::which(name).ok()),
-        find_preview: Box::new(find_preview_ffmpeg),
     };
     doctor::check(&env, &MODELS)
 }
@@ -23,7 +22,6 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
         os: Os::current(),
         models_dir: &models_dir,
         find_tool: Box::new(|name| which::which(name).ok()),
-        find_preview: Box::new(find_preview_ffmpeg),
     };
 
     let mut report = doctor::check(&env, &MODELS);
@@ -46,8 +44,9 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
     Ok((summary, report.ok))
 }
 
-/// The first ffmpeg with the libass `ass` filter: the one on `PATH`, then
-/// the usual keg-only install places.
+/// Development only: the first ffmpeg with the libass `ass` filter (the
+/// one on `PATH`, then the usual keg-only install places), for
+/// `viralcraft preview`. Users are not offered one.
 pub fn find_preview_ffmpeg() -> Option<std::path::PathBuf> {
     let on_path = which::which("ffmpeg").ok();
     on_path

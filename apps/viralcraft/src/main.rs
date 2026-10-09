@@ -39,8 +39,10 @@ enum Command {
         #[arg(long, default_value_t = shots::DEFAULT_THRESHOLD)]
         threshold: f64,
     },
-    /// Write preview.mp4: the video with our captions burned on top
-    /// (needs an ffmpeg with libass; `doctor --install` offers one).
+    /// Development only: write preview.mp4, the video with our captions
+    /// burned on top, to check caption accuracy by eye. Needs an ffmpeg
+    /// with libass (on macOS: brew install ffmpeg-full).
+    #[command(hide = true)]
     Preview { run_dir: PathBuf },
     /// Delete frames/ and source.cfr.mp4 from a finished run.
     Clean { run_dir: PathBuf },
