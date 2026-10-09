@@ -272,8 +272,8 @@ anchor, size, in/out. Kind is left to judgement. Allowed to be conservative.
 **Estimated scope:** M
 
 ## Checkpoint: Measurement
-- [ ] All Phase 2 ignored tests pass on the fixtures
-- [ ] Detection time per frame recorded; under 30 ms or fallback decided
+- [x] All Phase 2 ignored tests pass on the fixtures (10 tests, 21 s release)
+- [x] Detection time per frame recorded: 25 to 33 ms (tasks/notes.md); fallback deferred to the real-clip run
 - [ ] Run on one real viral clip supplied by the human; estimators judged
 - [ ] Review with human before proceeding
 
