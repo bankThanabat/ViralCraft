@@ -133,6 +133,7 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
             line_boxes: c.line_boxes,
             fill: colors.fill,
             outline: colors.outline,
+            box_color: colors.box_color,
             line_height,
             font_px_estimate: (line_height * f64::from(probe.height) / LINE_TO_FONT).round(),
             animation: c.animation,

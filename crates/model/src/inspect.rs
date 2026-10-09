@@ -144,6 +144,8 @@ pub struct CaptionEvent {
     pub anchor: String,
     pub fill: String,
     pub outline: Option<String>,
+    /// Solid box behind the text (ASS BorderStyle 3), if any.
+    pub box_color: Option<String>,
     /// Line height as a fraction of frame height.
     pub line_height: f64,
     /// Font size estimate in source pixels, from line height.

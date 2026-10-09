@@ -15,6 +15,62 @@ pub struct PixelBox {
 pub struct CaptionColors {
     pub fill: String,
     pub outline: Option<String>,
+    /// Colour of a solid box behind the text (ASS BorderStyle 3).
+    pub box_color: Option<String>,
+}
+
+/// Whether `c` lies on the line between `bg` and `fill`, i.e. is a mix of
+/// the two rather than a colour of its own.
+fn is_blend(c: [u8; 3], fill: [u8; 3], bg: [f64; 3]) -> bool {
+    let d: Vec<f64> = (0..3).map(|i| f64::from(fill[i]) - bg[i]).collect();
+    let v: Vec<f64> = (0..3).map(|i| f64::from(c[i]) - bg[i]).collect();
+    let len2: f64 = d.iter().map(|x| x * x).sum();
+    if len2 < 1.0 {
+        return false;
+    }
+    let t = v.iter().zip(&d).map(|(a, b)| a * b).sum::<f64>() / len2;
+    let off_line = (0..3)
+        .map(|i| (v[i] - t * d[i]).powi(2))
+        .sum::<f64>()
+        .sqrt();
+    (0.05..0.95).contains(&t) && off_line < 30.0
+}
+
+/// A colour this far (Euclidean RGB) from the surround ends a box.
+const BOX_EDGE: f64 = 60.0;
+
+/// Whether the colour around the text stops within reach on at least three
+/// sides, as a box behind the text does. Open scenery continues instead.
+fn on_a_box(img: &RgbImage, bx: PixelBox, surround: [f64; 3]) -> bool {
+    let (iw, ih) = (img.width() as i64, img.height() as i64);
+    let reach = i64::from((bx.h * 2).max(24));
+    let (x0, y0) = (i64::from(bx.x), i64::from(bx.y));
+    let (x1, y1) = (x0 + i64::from(bx.w), y0 + i64::from(bx.h));
+    let edge_within = |sx: i64, sy: i64, dx: i64, dy: i64| {
+        (5..reach).any(|step| {
+            let (x, y) = (sx + dx * step, sy + dy * step);
+            x >= 0
+                && y >= 0
+                && x < iw
+                && y < ih
+                && dist(img.get_pixel(x as u32, y as u32).0, surround) > BOX_EDGE
+        })
+    };
+    let side = |points: [(i64, i64); 3], dx: i64, dy: i64| {
+        points
+            .iter()
+            .filter(|(x, y)| edge_within(*x, *y, dx, dy))
+            .count()
+            >= 2
+    };
+    let (qx, qy) = ((x1 - x0) / 4, (y1 - y0) / 4);
+    let closed = [
+        side([(x0, y0 + qy), (x0, (y0 + y1) / 2), (x0, y1 - qy)], -1, 0),
+        side([(x1, y0 + qy), (x1, (y0 + y1) / 2), (x1, y1 - qy)], 1, 0),
+        side([(x0 + qx, y0), ((x0 + x1) / 2, y0), (x1 - qx, y0)], 0, -1),
+        side([(x0 + qx, y1), ((x0 + x1) / 2, y1), (x1 - qx, y1)], 0, 1),
+    ];
+    closed.iter().filter(|&&c| c).count() >= 3
 }
 
 /// Pixels this close (Euclidean RGB) to the background are background.
@@ -66,6 +122,7 @@ pub fn caption_colors(img: &RgbImage, bx: PixelBox) -> CaptionColors {
         }
     }
     let bg = as_f(median(&ring));
+    let box_color = on_a_box(img, bx, bg).then(|| hex(median(&ring)));
     let is_bg = |x: u32, y: u32| dist(px(x, y), bg) < BG_DISTANCE;
 
     let mut ink: Vec<(u32, u32)> = Vec::new();
@@ -80,6 +137,7 @@ pub fn caption_colors(img: &RgbImage, bx: PixelBox) -> CaptionColors {
         return CaptionColors {
             fill: hex(median(&ring)),
             outline: None,
+            box_color,
         };
     }
 
@@ -120,6 +178,7 @@ pub fn caption_colors(img: &RgbImage, bx: PixelBox) -> CaptionColors {
         return CaptionColors {
             fill: hex(median(&colors)),
             outline: None,
+            box_color,
         };
     }
 
@@ -155,9 +214,13 @@ pub fn caption_colors(img: &RgbImage, bx: PixelBox) -> CaptionColors {
         let keep = (members.len() * 3 / 10).max(1);
         median(&members[..keep])
     };
+    let (fill, outline) = (group_median(fill_k), group_median(outline_k));
     CaptionColors {
-        fill: hex(group_median(fill_k)),
-        outline: Some(hex(group_median(outline_k))),
+        fill: hex(fill),
+        // Anti-aliasing between the text and a plain background makes a
+        // cluster of in-between shades; a real outline is its own colour.
+        outline: (!is_blend(outline, fill, bg)).then(|| hex(outline)),
+        box_color,
     }
 }
 
@@ -314,6 +377,43 @@ mod tests {
             "outline {:?}",
             s.outline
         );
+    }
+
+    #[test]
+    fn real_title_white_on_a_black_box_is_a_box_not_an_outline() {
+        // The clip's persistent title, cropped from a 720x1280 frame.
+        let s = real_crop(
+            "title-box",
+            PixelBox {
+                x: 50,
+                y: 44,
+                w: 425,
+                h: 29,
+            },
+        );
+        assert!(close(&s.fill, "#FFFFFF", 16), "fill {}", s.fill);
+        assert!(
+            close(s.box_color.as_deref().unwrap_or("#808080"), "#000000", 16),
+            "box {:?}",
+            s.box_color
+        );
+        assert_eq!(s.outline, None, "fill {} box {:?}", s.fill, s.box_color);
+    }
+
+    #[test]
+    fn text_on_open_scenery_has_no_box() {
+        let navy = real_crop(
+            "one-navy",
+            PixelBox {
+                x: 12,
+                y: 12,
+                w: 107,
+                h: 39,
+            },
+        );
+        assert_eq!(navy.box_color, None);
+        let (img, bx) = caption_image([0x20, 0x20, 0x20], [255, 230, 0], None);
+        assert_eq!(caption_colors(&img, bx).box_color, None);
     }
 
     #[test]
