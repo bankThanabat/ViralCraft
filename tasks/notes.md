@@ -54,3 +54,17 @@ transcript's spelling for captions whose words match speech in the same
 window. Overlay detection fires on cartoon animation; the agent dismisses it.
 Detection measured 24.8 ms per frame on this run at 720x1280 against 62 ms
 on the fixture test; the clip's total time is the reliable number.
+
+### Caption re-reading from the full-size source
+
+The typos were not in the source: crops of the original 1080x1920 frames
+read cleanly ("here it goes!", "like", "*sigh*") where the 720x1280 frames
+gave "qoes", "Tike", "siah". Captions are still found on the small frames,
+then each is cropped from the full-size source at three moments and the
+most common reading wins. No transcript is used: many videos have no
+speech, and creators spell on purpose (the clip writes "h@rming").
+
+On the clip, 15 of 35 captions changed: about ten clear fixes, a few new
+small errors (a stray "GAOOW" line, a leading dot, "Wanna"). A lone "I" is
+still dropped in places ("butdon't", "Me if had"); that is left to the
+agent's review of the frames. Cost: about 4 s more on the 56 s clip.

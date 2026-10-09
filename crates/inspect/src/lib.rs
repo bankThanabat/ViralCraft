@@ -4,6 +4,7 @@ pub mod captions;
 pub mod look;
 pub mod motion;
 pub mod overlays;
+pub mod reread;
 pub mod style;
 pub mod text;
 
@@ -139,6 +140,12 @@ pub fn run(run_dir: &Path) -> Result<Inspect, InspectError> {
             animation: c.animation,
             safe_zone: look::clearance(&c.bounds, &probe.safe_zone),
         });
+    }
+
+    reread::reread(run_dir, &probe.file, &ocr, &mut events)?;
+    for e in &mut events {
+        let letters: Vec<char> = e.text.chars().filter(|ch| ch.is_alphabetic()).collect();
+        e.uppercase = !letters.is_empty() && letters.iter().all(|ch| ch.is_uppercase());
     }
 
     let (motion, overlays) = measure_motion(&shots, &thumbs, &events, &probe);
