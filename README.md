@@ -49,7 +49,8 @@ viralcraft analyze [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE] [--thr
 viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
                                         # merge into EDIT-SPEC.md, write OTIO
                                         # metadata, captions.ass/.vtt, TEMPLATE.md
-viralcraft assets <RUN_DIR> [--assets DIR]   # optional rebuild: read the user's clips
+viralcraft assets <RUN_DIR> [--assets DIR] [--sounds DIR]...
+                                        # optional rebuild: read the user's clips and sounds
 viralcraft prompt <RUN_DIR> [--script FILE] [--no-captions]
                                         # optional rebuild: REBUILD-PROMPT.md
 viralcraft voiceover <RUN_DIR> --script FILE [--voice V] [--model M]
@@ -77,7 +78,12 @@ Every command prints one JSON line on stdout, also on failure
 
 ## Optional: rebuild with your clips
 
-Put your clips in `./assets/`. They are only read, never changed.
+Put your clips in `./assets/`, and any music or sound effects you want to
+use too (a subfolder like `assets/sounds/` is fine; `--sounds <folder>`
+reads them from anywhere else). They are only read, never changed. The
+AI picks which music and effects go where by the story the video tells,
+and shows you its picks before building. Free sources: Pixabay Music and
+Sound Effects, Freesound (CC0), the YouTube Audio Library.
 
 1. `viralcraft assets out/<video name>` probes each clip, transcribes any
    speech, names sounds, and saves a thumbnail strip, all in

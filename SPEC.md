@@ -85,7 +85,8 @@ viralcraft analyze [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE] [--thr
 viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
                                         # merge into EDIT-SPEC.md, write OTIO
                                         # metadata, captions.ass/.vtt, TEMPLATE.md
-viralcraft assets <RUN_DIR> [--assets DIR]   # optional rebuild: read the user's clips
+viralcraft assets <RUN_DIR> [--assets DIR] [--sounds DIR]...
+                                        # optional rebuild: read the user's clips and sounds
 viralcraft prompt <RUN_DIR> [--script FILE] [--no-captions]
                                         # optional rebuild: REBUILD-PROMPT.md
 viralcraft voiceover <RUN_DIR> --script FILE [--voice V] [--model M]
@@ -503,6 +504,18 @@ viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnosti
   `<RUN_DIR>/rebuild/rebuild.mp4` and the project to
   `<RUN_DIR>/rebuild/rebuild.fcproj`. The skill checks for `filmcraft-cli`
   and tells the user how to get it if missing; `doctor` does not.
+- **The user's music and effects.** Audio files in the assets folder, one
+  level of subfolders, or extra `--sounds` folders are read too (never
+  changed) into `assets.json`'s `sounds`: length, tempo when a beat
+  repeats over at least 4 s, loudness, what YAMNet hears, and a transcript
+  for recordings with speech. `role` (music, effect, voice) is only a
+  first guess. The prompt shows the original's music and effects slot by
+  slot next to the user's sounds, and asks the agent to choose by what
+  each part of the story does, not by file names, and to show the user
+  its picks first. Effects in the original list the user's files that
+  sound like them (heard as, or named as, the same thing) as hints. With
+  no sounds, the prompt points to free sources and warns against taking
+  sounds out of social apps' libraries. Decided with the user 2026-10-09.
 - **No speech to caption from.** With no script and no speech in any
   clip, the user chooses: an AI voiceover, or no captions
   (`prompt --no-captions`). For a voiceover the agent drafts one line per

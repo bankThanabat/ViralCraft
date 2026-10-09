@@ -10,14 +10,22 @@ fn fixtures() -> &'static Path {
 }
 
 fn snapshot(dir: &Path) -> Vec<(String, Vec<u8>)> {
-    let mut files: Vec<(String, Vec<u8>)> = fs::read_dir(dir)
-        .unwrap()
-        .map(|e| e.unwrap().path())
-        .map(|p| {
-            let bytes = fs::read(&p).unwrap();
-            (p.file_name().unwrap().to_string_lossy().into_owned(), bytes)
-        })
-        .collect();
+    let mut files = Vec::new();
+    for p in fs::read_dir(dir).unwrap().map(|e| e.unwrap().path()) {
+        if p.is_dir() {
+            files.extend(snapshot(&p).into_iter().map(|(name, bytes)| {
+                (
+                    format!("{}/{name}", p.file_name().unwrap().to_string_lossy()),
+                    bytes,
+                )
+            }));
+        } else {
+            files.push((
+                p.file_name().unwrap().to_string_lossy().into_owned(),
+                fs::read(&p).unwrap(),
+            ));
+        }
+    }
     files.sort();
     files
 }
@@ -64,9 +72,48 @@ fn clips_are_probed_transcribed_and_thumbnailed_and_left_untouched() {
         .status()
         .unwrap();
     assert!(status.success());
+    // Sounds the user added, in subfolders: a 120 bpm click track, a short
+    // burst and a spoken line.
+    fs::create_dir_all(assets.join("music")).unwrap();
+    fs::create_dir_all(assets.join("sounds")).unwrap();
+    let make = |args: &[&str], out: &Path| {
+        let ok = Command::new("ffmpeg")
+            .args(["-y", "-v", "error"])
+            .args(args)
+            .arg(out)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ok, "{}", out.display());
+    };
+    make(
+        &[
+            "-f",
+            "lavfi",
+            "-i",
+            "aevalsrc='if(lt(mod(t,0.5),0.03),sin(2*PI*880*t),0)':s=44100:d=20",
+        ],
+        &assets.join("music/clicks.wav"),
+    );
+    make(
+        &[
+            "-f",
+            "lavfi",
+            "-i",
+            "anoisesrc=d=0.6:a=0.5",
+            "-af",
+            "afade=t=out:st=0.2:d=0.4",
+        ],
+        &assets.join("sounds/burst.wav"),
+    );
+    fs::copy(
+        fixtures().join("speech.wav"),
+        assets.join("sounds/line.wav"),
+    )
+    .unwrap();
     let before = snapshot(&assets);
 
-    let read = rebuild::run(&run_dir, &assets).unwrap();
+    let read = rebuild::run(&run_dir, &assets, &[]).unwrap();
 
     assert_eq!(
         snapshot(&assets),
@@ -100,4 +147,30 @@ fn clips_are_probed_transcribed_and_thumbnailed_and_left_untouched() {
     }
     assert!(read.clips[3].thumbnail.is_empty());
     assert!(run_dir.join("rebuild/assets.json").is_file());
+
+    let sound = |f: &str| {
+        read.sounds
+            .iter()
+            .find(|s| s.file == f)
+            .unwrap_or_else(|| panic!("{f} in {:?}", read.sounds))
+    };
+    assert_eq!(read.sounds.len(), 3);
+    let clicks = sound("music/clicks.wav");
+    assert_eq!(clicks.role, "music");
+    assert!(
+        (clicks.bpm.unwrap() - 120.0).abs() < 3.0,
+        "{:?}",
+        clicks.bpm
+    );
+    assert!((clicks.seconds - 20.0).abs() < 0.1);
+    let burst = sound("sounds/burst.wav");
+    assert_eq!(burst.role, "effect");
+    assert!(burst.level_db.is_some());
+    let line = sound("sounds/line.wav");
+    assert_eq!(line.role, "voice");
+    assert!(
+        line.transcript.to_lowercase().contains("scrolling"),
+        "{}",
+        line.transcript
+    );
 }

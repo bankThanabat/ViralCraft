@@ -11,6 +11,33 @@ pub struct Assets {
     /// The folder the clips were read from.
     pub folder: String,
     pub clips: Vec<Asset>,
+    /// Music, sound effects and recordings the user added, in the folder
+    /// or one level below it. Which to use where is the agent's choice.
+    #[serde(default)]
+    pub sounds: Vec<SoundAsset>,
+}
+
+/// One audio file the user added. Every field is measured; `role` is only
+/// a first guess from length, beat and speech.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SoundAsset {
+    /// Path inside the assets folder, e.g. `sounds/whoosh.wav`.
+    pub file: String,
+    pub sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duplicate_of: Option<String>,
+    pub seconds: f64,
+    /// `music`, `effect` or `voice`.
+    pub role: String,
+    /// Beats per minute when a steady beat was found.
+    pub bpm: Option<f64>,
+    /// Mean loudness in dBFS.
+    pub level_db: Option<f64>,
+    /// What the sound-effect model hears, most frequent first.
+    pub labels: Vec<String>,
+    pub language: String,
+    /// What is said, for a recording with speech.
+    pub transcript: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

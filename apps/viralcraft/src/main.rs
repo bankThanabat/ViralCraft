@@ -68,12 +68,16 @@ enum Command {
     /// Write captions.vtt, captions.ass and timeline.otio from the measurements.
     Exports { run_dir: PathBuf },
     /// Optional rebuild step: read the user's own clips (probe, transcript,
-    /// thumbnail) into rebuild/assets.json. Never changes the clips.
+    /// thumbnail) and any music, effects or recordings they added (in the
+    /// folder or a subfolder) into rebuild/assets.json. Never changes them.
     Assets {
         run_dir: PathBuf,
         /// Folder with the clips; asks for one if it has none.
         #[arg(long, default_value = "assets")]
         assets: PathBuf,
+        /// Another folder with music or sound effects to use (repeatable).
+        #[arg(long)]
+        sounds: Vec<PathBuf>,
     },
     /// Optional rebuild step: write rebuild/REBUILD-PROMPT.md, steps any
     /// editor agent can follow to remake the format with the user's clips.
@@ -191,10 +195,14 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
             safe_zone,
             threshold,
         }),
-        Command::Assets { run_dir, assets } => {
+        Command::Assets {
+            run_dir,
+            assets,
+            sounds: sound_dirs,
+        } => {
             let folder = rebuild::resolve_folder(&assets, prompt::ask_path)?;
             eprintln!("assets: {}", folder.display());
-            let read = rebuild::run(&run_dir, &folder)?;
+            let read = rebuild::run(&run_dir, &folder, &sound_dirs)?;
             let clips: Vec<Value> = read
                 .clips
                 .iter()
@@ -208,11 +216,26 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                     })
                 })
                 .collect();
+            let sounds: Vec<Value> = read
+                .sounds
+                .iter()
+                .map(|s| {
+                    json!({
+                        "file": s.file,
+                        "role": s.role,
+                        "seconds": (s.seconds * 10.0).round() / 10.0,
+                        "bpm": s.bpm,
+                        "heard": s.labels,
+                        "duplicate_of": s.duplicate_of,
+                    })
+                })
+                .collect();
             Ok((
                 json!({
                     "ok": true,
                     "folder": folder,
                     "clips": clips,
+                    "sounds": sounds,
                     "files": [run_dir.join(rebuild::REBUILD_DIR).join(rebuild::ASSETS_FILE)],
                 }),
                 true,

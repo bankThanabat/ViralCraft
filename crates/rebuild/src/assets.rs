@@ -16,6 +16,18 @@ const THUMBS_DIR: &str = "thumbs";
 const THUMB_FRAMES: u32 = 4;
 
 const VIDEO_EXTENSIONS: [&str; 6] = ["mp4", "mov", "m4v", "webm", "mkv", "avi"];
+const AUDIO_EXTENSIONS: [&str; 9] = [
+    "mp3", "wav", "m4a", "aac", "flac", "ogg", "opus", "aiff", "aif",
+];
+/// A sound at least this long is music unless it is mostly speech.
+const MUSIC_MIN_SECONDS: f64 = 15.0;
+/// Tempo confidence that counts as a steady beat (the same bar as `audio`).
+const STEADY_BEAT: f64 = 0.5;
+/// A tempo means nothing in less audio than this: a beat has to repeat.
+const MIN_BEAT_SECONDS: f64 = 4.0;
+/// Words that make a recording a voice rather than an effect.
+const VOICE_MIN_WORDS: usize = 3;
+const MAX_LABELS: usize = 5;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AssetsError {
@@ -57,6 +69,96 @@ pub fn find_clips(dir: &Path) -> Result<Vec<PathBuf>, AssetsError> {
         .collect();
     clips.sort();
     Ok(clips)
+}
+
+fn has_ext(p: &Path, exts: &[&str]) -> bool {
+    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    let ext = p.extension().and_then(|e| e.to_str()).unwrap_or_default();
+    !name.starts_with('.') && exts.contains(&ext.to_lowercase().as_str())
+}
+
+/// Audio files in `dir` and in its subfolders one level down (so music and
+/// effects can sit in `assets/music/` or `assets/sounds/`), with their path
+/// inside `dir`, ordered by that path.
+pub fn find_sounds(dir: &Path) -> Result<Vec<(PathBuf, String)>, AssetsError> {
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let list = |d: &Path| -> Result<Vec<PathBuf>, AssetsError> {
+        Ok(fs::read_dir(d)
+            .map_err(io_err(d))?
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .collect())
+    };
+    let mut found = Vec::new();
+    for p in list(dir)? {
+        let hidden = p
+            .file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.starts_with('.'));
+        if p.is_dir() && !hidden {
+            found.extend(
+                list(&p)?
+                    .into_iter()
+                    .filter(|q| q.is_file() && has_ext(q, &AUDIO_EXTENSIONS)),
+            );
+        } else if p.is_file() && has_ext(&p, &AUDIO_EXTENSIONS) {
+            found.push(p);
+        }
+    }
+    let mut out: Vec<(PathBuf, String)> = found
+        .into_iter()
+        .map(|p| {
+            let rel = p
+                .strip_prefix(dir)
+                .unwrap_or(&p)
+                .to_string_lossy()
+                .replace('\\', "/");
+            (p, rel)
+        })
+        .collect();
+    out.sort_by(|a, b| a.1.cmp(&b.1));
+    Ok(out)
+}
+
+/// A first guess at what a sound is for. The agent decides how to use it.
+pub fn guess_role(seconds: f64, beat_confidence: f64, words: usize) -> &'static str {
+    let steady = beat_confidence >= STEADY_BEAT && seconds >= MIN_BEAT_SECONDS;
+    if seconds >= MUSIC_MIN_SECONDS && steady {
+        "music"
+    } else if words >= VOICE_MIN_WORDS {
+        "voice"
+    } else if seconds >= MUSIC_MIN_SECONDS || steady {
+        "music"
+    } else {
+        "effect"
+    }
+}
+
+/// Sound names heard most often first, each once, at most five.
+pub fn top_labels(sounds: &[model::SoundEvent]) -> Vec<String> {
+    let mut counts: Vec<(String, usize)> = Vec::new();
+    for s in sounds {
+        match counts.iter_mut().find(|(l, _)| *l == s.label) {
+            Some((_, n)) => *n += 1,
+            None => counts.push((s.label.clone(), 1)),
+        }
+    }
+    // Stable: equal counts keep the order they were first heard in.
+    counts.sort_by_key(|c| std::cmp::Reverse(c.1));
+    counts
+        .into_iter()
+        .take(MAX_LABELS)
+        .map(|(l, _)| l)
+        .collect()
+}
+
+/// Mean power in dBFS; `None` for silence.
+pub fn level_db(samples: &[f32]) -> Option<f64> {
+    let power =
+        samples.iter().map(|v| f64::from(*v).powi(2)).sum::<f64>() / samples.len().max(1) as f64;
+    (power > 1e-10).then(|| 10.0 * power.log10())
 }
 
 /// `given` when it holds clips; otherwise asks for a folder once. No
@@ -114,7 +216,9 @@ fn path_str(p: &Path) -> &str {
 
 /// Reads every clip in `folder` into `<run_dir>/rebuild/assets.json`.
 /// Writes only inside `run_dir`.
-pub fn run(run_dir: &Path, folder: &Path) -> Result<Assets, AssetsError> {
+/// Sounds can also live outside the assets folder: `sound_dirs` are read
+/// the same way, never changed.
+pub fn run(run_dir: &Path, folder: &Path, sound_dirs: &[PathBuf]) -> Result<Assets, AssetsError> {
     // Absolute, because ffmpeg runs inside the run directory for the audio.
     let folder = &fs::canonicalize(folder).map_err(io_err(folder))?;
     let clips = find_clips(folder)?;
@@ -210,15 +314,95 @@ pub fn run(run_dir: &Path, folder: &Path) -> Result<Assets, AssetsError> {
         out.push(asset);
     }
 
+    let sounds = read_sounds(&dir, folder, sound_dirs)?;
     let assets = Assets {
         version: 1,
         folder: folder.display().to_string(),
         clips: out,
+        sounds,
     };
     let file = dir.join(ASSETS_FILE);
     let json = serde_json::to_string_pretty(&assets).expect("Assets always serialize");
     fs::write(&file, json).map_err(io_err(&file))?;
     Ok(assets)
+}
+
+/// Measures every audio file the user added; see [`model::SoundAsset`].
+/// Every sound to read: the assets folder's, named by their path inside
+/// it, then each extra folder's, named by their full path so an editor can
+/// import them from where they are.
+pub fn sound_sources(
+    folder: &Path,
+    sound_dirs: &[PathBuf],
+) -> Result<Vec<(PathBuf, String)>, AssetsError> {
+    let mut all = find_sounds(folder)?;
+    for d in sound_dirs {
+        let d = fs::canonicalize(d).map_err(io_err(d))?;
+        all.extend(
+            find_sounds(&d)?
+                .into_iter()
+                .map(|(p, _)| (p.clone(), p.display().to_string())),
+        );
+    }
+    Ok(all)
+}
+
+fn read_sounds(
+    work_dir: &Path,
+    folder: &Path,
+    sound_dirs: &[PathBuf],
+) -> Result<Vec<model::SoundAsset>, AssetsError> {
+    let found = sound_sources(folder, sound_dirs)?;
+    let named: Vec<(String, String)> = found
+        .iter()
+        .map(|(p, rel)| sha256(p).map(|h| (rel.clone(), h)))
+        .collect::<Result<_, _>>()?;
+    let dupes = duplicates(&named);
+    let rate = model::Fps::new(30, 1).expect("30 fps is valid");
+    let zero = model::RationalTime::from_frames(0, rate);
+    let mut out = Vec::with_capacity(found.len());
+    for (((path, _), (rel, hash)), duplicate_of) in found.iter().zip(named).zip(dupes) {
+        let mut sound = model::SoundAsset {
+            file: rel.clone(),
+            sha256: hash,
+            duplicate_of,
+            seconds: 0.0,
+            role: String::new(),
+            bpm: None,
+            level_db: None,
+            labels: Vec::new(),
+            language: String::new(),
+            transcript: String::new(),
+        };
+        if sound.duplicate_of.is_some() {
+            out.push(sound);
+            continue;
+        }
+        eprintln!("assets: {rel}");
+        let mut samples = audio::extract_16k_mono(work_dir, path_str(path))?;
+        sound.seconds = samples.len() as f64 / 16_000.0;
+        sound.level_db = level_db(&samples);
+        let rhythm = audio::rhythm::analyze(&samples, 16_000);
+        if rhythm.tempo.confidence >= STEADY_BEAT && sound.seconds >= MIN_BEAT_SECONDS {
+            sound.bpm = Some((rhythm.tempo.bpm * 10.0).round() / 10.0);
+        }
+        let (words, language) = audio::transcribe(&samples, rate, zero)?;
+        let (words, tags) = audio::words::split_sound_tags(words);
+        // The sound model needs a second of audio; pad short effects.
+        if samples.len() < 16_000 {
+            samples.resize(16_000, 0.0);
+        }
+        let mut heard = tags;
+        heard.extend(audio::name_sounds(&samples, rate, zero)?);
+        sound.labels = top_labels(&heard);
+        sound.role = guess_role(sound.seconds, rhythm.tempo.confidence, words.len()).to_string();
+        if words.len() >= VOICE_MIN_WORDS {
+            sound.transcript = audio::words::transcript(&words, &[]);
+            sound.language = language;
+        }
+        out.push(sound);
+    }
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -274,6 +458,106 @@ mod tests {
         let empty = tempfile::tempdir().unwrap();
         let err = resolve_folder(&empty.path().join("assets"), |_| None).unwrap_err();
         assert!(matches!(err, AssetsError::NoClips(_)), "{err}");
+    }
+
+    #[test]
+    fn audio_files_are_found_in_the_folder_and_one_level_below() {
+        let dir = tempfile::tempdir().unwrap();
+        let d = dir.path();
+        fs::create_dir_all(d.join("sounds/deeper")).unwrap();
+        fs::create_dir_all(d.join("music")).unwrap();
+        for f in [
+            "song.MP3",
+            "clip.mp4",
+            ".hidden.wav",
+            "sounds/whoosh.wav",
+            "sounds/notes.txt",
+            "sounds/deeper/too-deep.wav",
+            "music/bed.m4a",
+        ] {
+            fs::write(d.join(f), b"x").unwrap();
+        }
+        let got: Vec<String> = find_sounds(d)
+            .unwrap()
+            .into_iter()
+            .map(|(_, rel)| rel)
+            .collect();
+        assert_eq!(got, ["music/bed.m4a", "song.MP3", "sounds/whoosh.wav"]);
+    }
+
+    #[test]
+    fn sounds_elsewhere_are_listed_by_full_path_after_the_assets_folder() {
+        let assets = tempfile::tempdir().unwrap();
+        let elsewhere = tempfile::tempdir().unwrap();
+        fs::write(assets.path().join("song.mp3"), b"x").unwrap();
+        fs::write(elsewhere.path().join("whoosh.wav"), b"x").unwrap();
+        let got: Vec<String> = sound_sources(assets.path(), &[elsewhere.path().to_path_buf()])
+            .unwrap()
+            .into_iter()
+            .map(|(_, name)| name)
+            .collect();
+        // The real path: on macOS the temp folder sits under /private.
+        let far = fs::canonicalize(elsewhere.path())
+            .unwrap()
+            .join("whoosh.wav")
+            .display()
+            .to_string();
+        assert_eq!(got, ["song.mp3".to_string(), far]);
+    }
+
+    #[test]
+    fn a_sound_is_first_guessed_as_voice_music_or_effect() {
+        assert_eq!(guess_role(12.0, 0.1, 9), "voice", "speech wins");
+        assert_eq!(guess_role(95.0, 0.1, 0), "music", "long beds are music");
+        assert_eq!(guess_role(8.0, 0.8, 0), "music", "a steady beat is music");
+        assert_eq!(guess_role(1.2, 0.0, 0), "effect");
+        assert_eq!(
+            guess_role(6.0, 0.2, 1),
+            "effect",
+            "one stray word is not a voice"
+        );
+        assert_eq!(
+            guess_role(180.0, 0.7, 40),
+            "music",
+            "a song with lyrics is music"
+        );
+        // A 0.6 s noise burst had a "confident" tempo: too short to mean it.
+        assert_eq!(
+            guess_role(0.6, 0.9, 0),
+            "effect",
+            "a beat needs time to repeat"
+        );
+    }
+
+    #[test]
+    fn the_most_heard_labels_come_first_once_each() {
+        let r = model::Fps::new(30, 1).unwrap();
+        let s = |label: &str| model::SoundEvent {
+            label: label.into(),
+            start: model::RationalTime::from_frames(0, r),
+            duration: model::RationalTime::from_frames(1, r),
+            source: "yamnet".into(),
+        };
+        let got = top_labels(&[
+            s("whoosh"),
+            s("thunk"),
+            s("whoosh"),
+            s("bell"),
+            s("thunk"),
+            s("whoosh"),
+        ]);
+        assert_eq!(got, ["whoosh", "thunk", "bell"]);
+    }
+
+    #[test]
+    fn loudness_is_mean_power_in_dbfs() {
+        let full: Vec<f32> = (0..1600)
+            .map(|i| if i % 2 == 0 { 1.0 } else { -1.0 })
+            .collect();
+        assert!((level_db(&full).unwrap() - 0.0).abs() < 0.01);
+        let half: Vec<f32> = full.iter().map(|v| v * 0.5).collect();
+        assert!((level_db(&half).unwrap() + 6.02).abs() < 0.05);
+        assert_eq!(level_db(&vec![0.0; 100]), None, "silence has no level");
     }
 
     #[test]

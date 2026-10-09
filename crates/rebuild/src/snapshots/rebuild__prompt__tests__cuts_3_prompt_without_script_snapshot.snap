@@ -49,6 +49,16 @@ Every shot change is a hard cut.
   - clips with music in them: shelf.mp4
 - [tick] at f14: found in pour.mp4 at f40
 
+The original's sound, slot by slot:
+
+| slot | from | to | music | effects |
+|------|------|----|-------|---------|
+| HOOK | f0 | f60 | with a beat | [tick] f14 |
+| BUILD | f60 | f120 | with a beat | none |
+| PAYOFF | f120 | f180 | with a beat | none |
+
+Your sounds: none. If the user wants music or effects, they can add music or sound effect files to the assets folder (a subfolder such as sounds/ is fine) and run `viralcraft assets` again, or tell you where the files are. Free sources: https://pixabay.com/music/ and https://pixabay.com/sound-effects/ (no credit needed), https://freesound.org (pick CC0 sounds), the YouTube Audio Library. Never take sounds out of a social app's own sound library: their licences keep them inside the app.
+
 ## 6. Look
 flat primaries: solid colour cards, no grade
 

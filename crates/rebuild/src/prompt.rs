@@ -467,6 +467,12 @@ fn sound(d: &mut String, x: &PromptInputs, clips: &[&model::Asset]) {
             }
         );
     }
+    let mine: Vec<&model::SoundAsset> = x
+        .assets
+        .sounds
+        .iter()
+        .filter(|s| s.duplicate_of.is_none())
+        .collect();
     if a.sounds.is_empty() {
         let _ = writeln!(d, "- sound effects: none named in the original");
     } else {
@@ -480,20 +486,142 @@ fn sound(d: &mut String, x: &PromptInputs, clips: &[&model::Asset]) {
                         .map(move |cs| format!("{} at f{}", c.file, cs.start.value))
                 })
                 .collect();
+            let like: Vec<&str> = mine
+                .iter()
+                .filter(|m| sounds_like(&s.label, m))
+                .map(|m| m.file.as_str())
+                .collect();
             let _ = writeln!(
                 d,
-                "- [{}] at f{}: {}",
+                "- [{}] at f{}: {}{}",
                 s.label,
                 s.start.value,
                 if found.is_empty() {
                     "no clip has this sound; use a library effect or skip it".to_string()
                 } else {
                     format!("found in {}", found.join(", "))
+                },
+                if like.is_empty() {
+                    String::new()
+                } else {
+                    format!("; your sounds like it: {}", like.join(", "))
                 }
             );
         }
     }
-    let _ = writeln!(d);
+
+    let _ = writeln!(d, "\nThe original's sound, slot by slot:\n");
+    let _ = writeln!(d, "| slot | from | to | music | effects |");
+    let _ = writeln!(d, "|------|------|----|-------|---------|");
+    let runs = music_runs(&a.music);
+    for slot in template::slots(x.template) {
+        let mut music: Vec<String> = Vec::new();
+        for m in runs.iter().filter(|m| m.from < slot.to && m.to > slot.from) {
+            if let Some(l) = m.level_db {
+                music.push(format!("bed at about {} dB", num(l)));
+            }
+            if m.beat {
+                music.push("with a beat".to_string());
+            }
+        }
+        music.dedup();
+        let effects: Vec<String> = a
+            .sounds
+            .iter()
+            .filter(|e| (slot.from..slot.to).contains(&e.start.value))
+            .map(|e| format!("[{}] f{}", e.label, e.start.value))
+            .collect();
+        let _ = writeln!(
+            d,
+            "| {} | f{} | f{} | {} | {} |",
+            slot.name,
+            slot.from,
+            slot.to,
+            if music.is_empty() {
+                "none".to_string()
+            } else {
+                music.join(", ")
+            },
+            if effects.is_empty() {
+                "none".to_string()
+            } else {
+                effects.join(", ")
+            }
+        );
+    }
+
+    if mine.is_empty() {
+        let _ = writeln!(
+            d,
+            "\nYour sounds: none. If the user wants music or effects, they can add music or sound effect files \
+             to the assets folder (a subfolder such as sounds/ is fine) and run `viralcraft assets` again, or tell \
+             you where the files are. Free sources: https://pixabay.com/music/ and \
+             https://pixabay.com/sound-effects/ (no credit needed), https://freesound.org (pick CC0 sounds), \
+             the YouTube Audio Library. Never take sounds out of a social app's own sound library: their \
+             licences keep them inside the app.\n"
+        );
+        return;
+    }
+    let _ = writeln!(
+        d,
+        "\nYour sounds (role is a first guess from length, beat and speech):\n"
+    );
+    let _ = writeln!(d, "| file | role | length | tempo | level | heard |");
+    let _ = writeln!(d, "|------|------|--------|-------|-------|-------|");
+    for m in &mine {
+        let _ = writeln!(
+            d,
+            "| {} | {} | {:.1}s | {} | {} | {} |",
+            cell(&m.file),
+            m.role,
+            m.seconds,
+            m.bpm
+                .map_or("none".to_string(), |b| format!("{} bpm", num(b))),
+            m.level_db
+                .map_or("silent".to_string(), |l| format!("{} dB", num(l))),
+            if m.labels.is_empty() {
+                "nothing named".to_string()
+            } else {
+                m.labels.join(", ")
+            }
+        );
+        if !m.transcript.is_empty() {
+            let _ = writeln!(
+                d,
+                "|  | says |  |  |  | {} ({}) |",
+                cell(&m.transcript),
+                m.language
+            );
+        }
+    }
+    let _ = writeln!(
+        d,
+        "\nChoose by the story, not by the names: for each slot, pick the music and effects that carry what \
+         that part of the story does (the hook grabs, the steps stay calm, the payoff lands), at about the \
+         original's energy, tempo and loudness. A sound the original has may be left out when nothing \
+         fits, and one of the user's sounds may land where the story needs it even if the original was \
+         silent there. Before building, show the user your picks: which file, where, and why.\n"
+    );
+}
+
+/// Whether one of the user's sounds is like an effect in the original:
+/// the sound model heard that label in it, or its file name says it.
+fn sounds_like(label: &str, sound: &model::SoundAsset) -> bool {
+    let label = label.to_lowercase();
+    let words = |t: &str| -> Vec<String> {
+        t.to_lowercase()
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|w| !w.is_empty())
+            .map(str::to_string)
+            .collect()
+    };
+    let stem = std::path::Path::new(&sound.file)
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let named = words(&stem);
+    sound.labels.iter().any(|l| l.to_lowercase() == label)
+        || words(&label).iter().any(|w| named.contains(w))
 }
 
 /// Music beds closer than this are one bed with quiet moments, for an
@@ -884,6 +1012,100 @@ mod tests {
         let ok = run(dir.path(), None, true).unwrap();
         let doc = fs::read_to_string(ok).unwrap();
         assert!(caption_rows(&doc)[1].contains("| then we whisk it hard for a long time |"));
+    }
+
+    fn with_sounds() -> Assets {
+        let mut a = assets();
+        let sound = |file: &str, role: &str, seconds: f64, bpm: Option<f64>, labels: &[&str]| {
+            model::SoundAsset {
+                file: file.into(),
+                sha256: file.into(),
+                duplicate_of: None,
+                seconds,
+                role: role.into(),
+                bpm,
+                level_db: Some(-16.0),
+                labels: labels.iter().map(|l| l.to_string()).collect(),
+                language: String::new(),
+                transcript: String::new(),
+            }
+        };
+        a.sounds = vec![
+            sound("music/upbeat.mp3", "music", 92.5, Some(124.0), &["music"]),
+            sound("sounds/tick-tock.wav", "effect", 0.8, None, &["clock"]),
+            sound("sounds/pop.wav", "effect", 0.4, None, &["tick"]),
+            model::SoundAsset {
+                duplicate_of: Some("sounds/pop.wav".into()),
+                ..sound("sounds/pop copy.wav", "effect", 0.4, None, &[])
+            },
+        ];
+        a
+    }
+
+    fn sound_section(doc: &str) -> &str {
+        &doc[doc.find("## 5. Sound").unwrap()..doc.find("## 6.").unwrap()]
+    }
+
+    #[test]
+    fn the_originals_sound_is_laid_out_beat_by_beat() {
+        let doc = prompt(&with_sounds(), None);
+        let s = sound_section(&doc);
+        assert!(s.contains("| slot | from | to | music | effects |"), "{s}");
+        // cuts-3: a tick at f14 in the hook, music from f15 with a beat.
+        assert!(
+            s.contains("| HOOK | f0 | f60 | with a beat | [tick] f14 |"),
+            "{s}"
+        );
+        assert!(
+            s.contains("| PAYOFF | f120 | f180 | with a beat | none |"),
+            "{s}"
+        );
+    }
+
+    #[test]
+    fn the_users_sounds_are_listed_with_what_was_measured() {
+        let doc = prompt(&with_sounds(), None);
+        let s = sound_section(&doc);
+        assert!(
+            s.contains("| music/upbeat.mp3 | music | 92.5s | 124 bpm | -16 dB | music |"),
+            "{s}"
+        );
+        assert!(
+            s.contains("| sounds/pop.wav | effect | 0.4s | none | -16 dB | tick |"),
+            "{s}"
+        );
+        assert!(!s.contains("pop copy.wav"), "duplicates are left out");
+    }
+
+    #[test]
+    fn the_agent_chooses_sounds_by_the_story() {
+        let doc = prompt(&with_sounds(), None);
+        let s = sound_section(&doc);
+        assert!(s.contains("Choose by the story, not by the names"), "{s}");
+        assert!(s.contains("show the user your picks"), "{s}");
+    }
+
+    #[test]
+    fn effects_name_the_users_files_that_sound_like_them() {
+        let doc = prompt(&with_sounds(), None);
+        // Heard as a tick, or named like one.
+        assert!(
+            doc.contains("- [tick] at f14: found in pour.mp4 at f40; your sounds like it: sounds/tick-tock.wav, sounds/pop.wav"),
+            "{doc}"
+        );
+    }
+
+    #[test]
+    fn without_sounds_the_user_is_told_where_to_get_them() {
+        let doc = prompt(&assets(), None);
+        let s = sound_section(&doc);
+        assert!(s.contains("Your sounds: none."), "{s}");
+        assert!(
+            s.contains("add music or sound effect files to the assets folder"),
+            "{s}"
+        );
+        assert!(s.contains("pixabay.com/music"), "{s}");
+        assert!(s.contains("freesound.org"), "{s}");
     }
 
     #[test]

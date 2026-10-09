@@ -118,6 +118,9 @@ Place music and effect clips sound-only on audio tracks 2 and 3:
 ```
 
 Change levels with `clip.audioGain`. Check its params with `describe`.
+The user's music and effects are files in the assets folder (listed by
+their path inside it) or anywhere else (listed by full path); import them
+from where they are.
 
 A voiceover is a list of WAV files, one per caption, in
 `rebuild/voiceover/`. Import them with the clips. Place each one on A3 at

@@ -100,13 +100,24 @@ the files are.
 ## 6. Optional: rebuild with the user's clips
 
 Ask whether they want this format rebuilt with their own footage. If yes:
-1. `viralcraft assets <run_dir>` reads the clips in `./assets/`. If the JSON
-   error says there are none, ask the user for the folder and pass
-   `--assets <folder>`. Clips are only read, never changed. If a clip has
-   `duplicate_of`, tell the user it is a copy.
-2. Ask for a script: the caption lines they want, one per line. If they give
+1. If the original has music or named sound effects (EDIT-SPEC.md's Sound
+   section), ask whether the user has music or effects to use. They can
+   put the files in `./assets/` (a subfolder such as `assets/music/` or
+   `assets/sounds/` is fine), or tell you a folder anywhere else. If they
+   have none, suggest free sources: Pixabay Music and Sound Effects (no
+   credit needed), Freesound (pick CC0 sounds), the YouTube Audio Library.
+   Never take sounds out of TikTok's or CapCut's own libraries: their
+   licences keep them inside those apps.
+2. `viralcraft assets <run_dir> [--sounds <folder>]...` reads the clips in
+   `./assets/` and every audio file there and in `--sounds` folders. If
+   the JSON error says there are no clips, ask the user for the folder
+   and pass `--assets <folder>`. Everything is only read, never changed.
+   If a clip or sound has `duplicate_of`, tell the user it is a copy.
+   Each sound gets a `role` guess (music, effect, voice): a guess, not a
+   decision.
+3. Ask for a script: the caption lines they want, one per line. If they give
    one, save it as `<run_dir>/rebuild/script.txt` and pass `--script`.
-3. No script, and no clip has speech (`words` is 0 for every clip in the
+4. No script, and no clip has speech (`words` is 0 for every clip in the
    assets JSON)? Then there is nothing to caption from. Ask the user to
    choose:
    - **AI voiceover.** Ask which voice. `say` is free: the computer's own
@@ -128,10 +139,17 @@ Ask whether they want this format rebuilt with their own footage. If yes:
      captions, shorten those lines and run it again.
    - **No captions.** Pass `--no-captions` in the next step.
    Tell the user that platforms ask creators to label AI voices.
-4. `viralcraft prompt <run_dir> [--script <file>] [--no-captions]` writes
+5. `viralcraft prompt <run_dir> [--script <file>] [--no-captions]` writes
    `<run_dir>/rebuild/REBUILD-PROMPT.md`. After a voiceover, `--script` can
    be left out; the voiceover's lines are the script.
-5. Hand the prompt to an editor skill. With FilmCraft, use the
+6. **Choose the sound by the story.** The prompt's Sound section shows
+   the original's music and effects slot by slot, then the user's sounds
+   with what was measured. Pick music and effects for each slot by what
+   that part of the story does (the hook grabs, the steps stay calm, the
+   payoff lands), matching the original's energy, tempo and loudness, not
+   by file names. Leave an effect out when nothing fits. Tell the user
+   which file goes where and why, and wait for their OK.
+7. Hand the prompt to an editor skill. With FilmCraft, use the
    `viralcraft-filmcraft` skill. Without an editor skill, give the user the
    prompt's path.
 
