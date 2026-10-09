@@ -73,23 +73,24 @@ size, aspect, audio offset and the named safe-zone profile. Adds the shared
 
 **Estimated scope:** M
 
-## Task 4: fixtures generator and committed fixtures
+## Task 4: fixtures generator and committed fixtures ✅ done
 
 **Description:** `scripts/make-fixtures.py` renders frames with PIL and
 assembles them with ffmpeg: `cuts-3.mp4` (6 s, 1080x1920, three solid scenes
 with ONE/TWO/THREE at known positions, 120 bpm click), `cuts-3-vfr.mp4` (same
 with irregular timestamps), `zoom-1.mp4` (3 s, one scene with a textured
-background, scale 100→120 ease-out), `speech.wav` and `frame.png` from the
-verification run. A `fixtures.json` records every expected value.
+background, scale 100→120 ease-out), `speech.wav` built from per-word `say` clips at known offsets (exact word
+times; rebuilt only with `--speech`), and `cuts-3-scene0.png` as the
+single-frame OCR reference. A `fixtures.json` records every expected value.
 
 **Acceptance criteria:**
-- [ ] Each video is under 300 KB and `ffprobe` reports the intended rate, size and duration
-- [ ] `fixtures.json` lists cut frames, caption text and box centers, beat times, zoom endpoints
-- [ ] Running the script twice produces byte-identical PNG frames (deterministic)
+- [x] Each video is under 300 KB and `ffprobe` reports the intended rate, size and duration
+- [x] `fixtures.json` lists cut frames, caption text and box centers, beat times, zoom endpoints
+- [x] Running the script twice produces byte-identical PNG frames (deterministic)
 
 **Verification:**
-- [ ] Manual check: `python3 -I scripts/make-fixtures.py` then `ls -la tests/fixtures`
-- [ ] Build succeeds: `cargo build --release` (unchanged)
+- [x] Manual check: `python3 -I scripts/make-fixtures.py` then `ls -la tests/fixtures`
+- [x] Build succeeds: `cargo build --release` (unchanged)
 
 **Dependencies:** None
 

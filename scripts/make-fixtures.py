@@ -3,8 +3,10 @@
 
 Run from the repo root:  python3 -I scripts/make-fixtures.py
 
-Needs Pillow and ffmpeg. speech.wav also needs macOS `say`; elsewhere the
-committed copy is kept. Frames are rendered with Pillow because Homebrew's
+Needs Pillow and ffmpeg. Everything except speech is byte-identical on
+every run. speech.wav is only rebuilt with --speech (needs macOS `say`),
+because `say` output drifts by a few milliseconds between runs; the
+committed speech.wav and speech.json are always generated together. Frames are rendered with Pillow because Homebrew's
 ffmpeg has no drawtext filter; ffmpeg only assembles and encodes them.
 
 Every expected value the Rust tests check lives in fixtures.json, written
@@ -250,12 +252,11 @@ def trimmed_word(tmp, word):
 def make_speech(tmp):
     path = os.path.join(OUT, "speech.wav")
     meta_path = os.path.join(OUT, "speech.json")
+    if "--speech" not in sys.argv and os.path.exists(meta_path):
+        with open(meta_path) as f:
+            return json.load(f)
     if shutil.which("say") is None:
-        if os.path.exists(meta_path):
-            print("no `say`; keeping committed speech.wav", file=sys.stderr)
-            with open(meta_path) as f:
-                return json.load(f)
-        sys.exit("speech.wav needs macOS `say`")
+        sys.exit("speech.wav needs macOS `say`; rerun on a Mac with --speech")
 
     lead = int(0.3 * SPEECH_RATE)
     samples = array.array("h", [0] * lead)
