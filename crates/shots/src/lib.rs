@@ -13,8 +13,8 @@ pub const FRAMES_DIR: &str = "frames";
 /// scdet's own default on its 0..100 scale.
 pub const DEFAULT_THRESHOLD: f64 = 10.0;
 
-/// Short side of extracted frames. At half size a 720p source left 13 px
-/// dialogue text, too small to read reliably; 720 keeps it legible.
+/// Short side of extracted frames. At half size the first real clip
+/// (1080x1920) left dialogue text about 19 px tall and OCR misread words.
 pub const FRAME_SHORT_SIDE: u32 = 720;
 
 /// Extracted frame size for a `width` x `height` source: the short side

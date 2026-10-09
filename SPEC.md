@@ -149,8 +149,9 @@ Stage inputs are exact, and the capability map uses the same graph:
 | template | probe, shots, audio, inspect, judgement | TEMPLATE.md |
 
 Every frame is extracted, not a 2 fps sample, at 720 px on the short side
-(never upscaled). Half size was tried first; on a 720p source it left
-dialogue text 13 px tall and OCR misread it. A 60 s clip at 30 fps is 1,800
+(never upscaled). Half size was tried first; on the first real clip
+(1080x1920) it left dialogue text about 19 px tall and OCR misread words
+("throuah", "thinas"). A 60 s clip at 30 fps is 1,800
 JPEGs at 720x1280, roughly 150 to 250 MB, which caption-change detection
 and motion estimation need. `frames/` is deleted by `viralcraft clean` and
 is never committed.
