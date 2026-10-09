@@ -79,15 +79,18 @@ CLI surface:
 
 ```
 viralcraft doctor [--install]           # check tools and models; --install asks per item
-viralcraft analyze [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
+viralcraft analyze [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE] [--threshold N]
                                         # full pipeline; FILE defaults to the
                                         # single file in --inbox, else asks
 viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
                                         # merge into EDIT-SPEC.md, write OTIO
                                         # metadata, captions.ass/.vtt, TEMPLATE.md
+viralcraft assets <RUN_DIR> [--assets DIR]   # optional rebuild: read the user's clips
+viralcraft prompt <RUN_DIR> [--script FILE]  # optional rebuild: REBUILD-PROMPT.md
 viralcraft clean <RUN_DIR>              # delete frames/ and source.cfr.mp4
-viralcraft shots <RUN_DIR>              # run one stage on an existing run dir;
-viralcraft audio <RUN_DIR>              # same for ingest, inspect, editspec, exports
+viralcraft ingest [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
+viralcraft shots <RUN_DIR> [--threshold N]   # run one stage on an existing run dir;
+viralcraft audio <RUN_DIR>              # same for inspect, editspec, exports
 ```
 
 Every subcommand prints a one-line JSON summary on stdout (paths written,
@@ -108,12 +111,14 @@ crates/inspect/            → OCR, color stats, motion estimate, framing
 crates/editspec/           → Markdown writer with judgement slots
 crates/exports/            → OTIO and WebVTT writers
 crates/template/           → TEMPLATE.md scaffold
+crates/rebuild/            → optional rebuild: assets.json, REBUILD-PROMPT.md
 crates/model/              → shared serde types for every JSON file below
-skill/viralcraft/SKILL.md  → the agent skill (installed with npx skills add)
-skill/viralcraft/references/ → hook taxonomy, grade vocabulary, examples
+skill/viralcraft/          → the core agent skill: SKILL.md, judgement guide, example
+skill/viralcraft-filmcraft/ → the FilmCraft editor skill and its command reference
 tests/fixtures/            → two tiny generated videos (see Testing)
 docs/intent/               → confirmed intent
-docs/adr/                  → decisions (Rust, agent-side judgement, ffmpeg-only)
+docs/adr/                  → decisions (Rust, agent-side judgement, ffmpeg-only,
+                             standard formats, optional editor step)
 inbox/                     → default drop folder (gitignored)
 out/                       → run directories (gitignored)
 ```

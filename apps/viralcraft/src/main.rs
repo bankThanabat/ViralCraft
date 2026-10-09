@@ -60,7 +60,7 @@ enum Command {
     },
     /// Transcribe speech with word timing; detect beats and tempo.
     Audio { run_dir: PathBuf },
-    /// Measure captions (and later motion, look, overlays) from the frames.
+    /// Measure captions, camera motion, look and overlays from the frames.
     Inspect { run_dir: PathBuf },
     /// After judgement.json is written: check it, then write the finished
     /// EDIT-SPEC.md, captions and timeline.
