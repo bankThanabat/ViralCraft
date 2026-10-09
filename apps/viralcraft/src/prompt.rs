@@ -14,6 +14,13 @@ pub fn confirm(question: &str) -> bool {
     matches!(ask(question).as_deref(), Some("y" | "Y" | "yes"))
 }
 
+/// A free answer, lower-cased; `None` for an empty answer or closed stdin.
+pub fn answer(question: &str) -> Option<String> {
+    ask(question)
+        .map(|a| a.trim().to_lowercase())
+        .filter(|a| !a.is_empty())
+}
+
 fn ask(question: &str) -> Option<String> {
     eprint!("{question} ");
     let _ = io::stderr().flush();

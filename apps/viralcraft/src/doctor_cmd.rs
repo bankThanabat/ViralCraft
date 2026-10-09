@@ -28,7 +28,7 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
     print_report(&report);
 
     if install && report.has_offers() {
-        doctor::install(&report, ask, run_fix)?;
+        doctor::install(&report, ask, choose, run_fix)?;
         report = doctor::check(&env, &MODELS);
         eprintln!();
         print_report(&report);
@@ -45,7 +45,26 @@ pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
 }
 
 pub fn print_report(report: &Report) {
+    let mut groups_shown: Vec<String> = Vec::new();
     for item in &report.items {
+        if let Some(group) = &item.group {
+            if groups_shown.contains(group) {
+                continue;
+            }
+            groups_shown.push(group.clone());
+            let installed: Vec<&str> = report
+                .items
+                .iter()
+                .filter(|i| i.group.as_ref() == Some(group) && i.state == State::Present)
+                .map(|i| i.name.as_str())
+                .collect();
+            if installed.is_empty() {
+                eprintln!("off      {group}  (optional: small, medium or large; `viralcraft doctor --install`)");
+            } else {
+                eprintln!("ok       {group}  ({})", installed.join(", "));
+            }
+            continue;
+        }
         let mark = match (item.state, item.optional) {
             (State::Present, _) => "ok     ",
             (State::Missing, true) => "off    ",
@@ -61,6 +80,23 @@ pub fn print_report(report: &Report) {
             Some(fix) => eprintln!("{mark}  {}  →  {fix}", item.name),
         }
     }
+}
+
+/// One question for a group of interchangeable models, e.g. the three
+/// multilingual speech sizes.
+fn choose(group: &str, choices: &[&Item]) -> Option<usize> {
+    let mut question =
+        format!("Optional: do you want {group} (Thai, Japanese, Spanish...)? [n] no");
+    for c in choices {
+        let size = c.purpose.rsplit(": ").next().unwrap_or(&c.purpose);
+        let key = size.chars().next().unwrap_or('?');
+        question.push_str(&format!(", [{key}] {size}"));
+    }
+    let answer = crate::prompt::answer(&question)?;
+    choices.iter().position(|c| {
+        let size = c.purpose.rsplit(": ").next().unwrap_or(&c.purpose);
+        size.starts_with(answer.as_str()) && !answer.is_empty()
+    })
 }
 
 fn ask(item: &Item) -> bool {

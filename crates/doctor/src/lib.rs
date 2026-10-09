@@ -22,13 +22,18 @@ pub struct ModelSpec {
     pub optional: bool,
     /// What the model is for, shown when asking to install it.
     pub purpose: &'static str,
+    /// Interchangeable models offered as one choice; any one is enough.
+    pub group: Option<&'static str>,
 }
+
+/// The multilingual whisper models: pick one size.
+pub const MULTILINGUAL: &str = "multilingual speech";
 
 /// Every model ViralCraft loads. Hashes were taken from the files verified on
 /// 2026-10-09; the whisper and YAMNet hashes match Hugging Face's published
 /// LFS etags. YAMNet is Google's AudioSet sound classifier (Apache-2.0),
 /// converted to ONNX by the audiomagic repo; the URL is pinned to a commit.
-pub const MODELS: [ModelSpec; 4] = [
+pub const MODELS: [ModelSpec; 7] = [
     ModelSpec {
         file: "ggml-tiny.en.bin",
         url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin",
@@ -36,6 +41,7 @@ pub const MODELS: [ModelSpec; 4] = [
         size: 77_704_715,
         optional: false,
         purpose: "speech transcription",
+        group: None,
     },
     ModelSpec {
         file: "text-detection.rten",
@@ -44,6 +50,7 @@ pub const MODELS: [ModelSpec; 4] = [
         size: 2_510_284,
         optional: false,
         purpose: "finding on-screen text",
+        group: None,
     },
     ModelSpec {
         file: "text-recognition.rten",
@@ -52,6 +59,7 @@ pub const MODELS: [ModelSpec; 4] = [
         size: 9_716_568,
         optional: false,
         purpose: "reading on-screen text",
+        group: None,
     },
     ModelSpec {
         file: "yamnet.onnx",
@@ -60,6 +68,34 @@ pub const MODELS: [ModelSpec; 4] = [
         size: 16_093_355,
         optional: true,
         purpose: "sound-effect names (typing, whoosh, pop) in the transcript",
+        group: None,
+    },
+    ModelSpec {
+        file: "ggml-small.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-small.bin",
+        sha256: "1be3a9b2063867b937e64e2ec7483364a79917e157fa98c5d94b5c1fffea987b",
+        size: 487_601_967,
+        optional: true,
+        purpose: "speech in other languages: small (0.5 GB, good)",
+        group: Some(MULTILINGUAL),
+    },
+    ModelSpec {
+        file: "ggml-medium.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-medium.bin",
+        sha256: "6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208",
+        size: 1_533_763_059,
+        optional: true,
+        purpose: "speech in other languages: medium (1.5 GB, better)",
+        group: Some(MULTILINGUAL),
+    },
+    ModelSpec {
+        file: "ggml-large-v3.bin",
+        url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3.bin",
+        sha256: "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2",
+        size: 3_095_033_483,
+        optional: true,
+        purpose: "speech in other languages: large (3.1 GB, best)",
+        group: Some(MULTILINGUAL),
     },
 ];
 
@@ -110,6 +146,8 @@ pub struct Item {
     /// Missing optional items do not fail the check.
     pub optional: bool,
     pub purpose: String,
+    /// Set for interchangeable models offered as one choice.
+    pub group: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -126,7 +164,18 @@ impl Report {
     /// Whether anything could be installed, including optional extras that
     /// do not fail the check.
     pub fn has_offers(&self) -> bool {
-        self.items.iter().any(|i| i.fix.is_some())
+        self.items
+            .iter()
+            .any(|i| i.fix.is_some() && !self.group_satisfied(i.group.as_deref()))
+    }
+
+    /// Whether some member of `group` is installed (always false for none).
+    pub fn group_satisfied(&self, group: Option<&str>) -> bool {
+        group.is_some_and(|g| {
+            self.items
+                .iter()
+                .any(|i| i.group.as_deref() == Some(g) && i.state == State::Present)
+        })
     }
 }
 
@@ -176,6 +225,7 @@ pub fn check(env: &Env, models: &[ModelSpec]) -> Report {
             path,
             optional: false,
             purpose: "video and audio decoding".to_string(),
+            group: None,
         });
     }
     for model in models {
@@ -188,6 +238,7 @@ pub fn check(env: &Env, models: &[ModelSpec]) -> Report {
             path: Some(path),
             optional: model.optional,
             purpose: model.purpose.to_string(),
+            group: model.group.map(str::to_string),
         });
     }
     let ok = items
@@ -215,16 +266,37 @@ fn sha256_file(path: &Path) -> io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-/// Offers each fix in turn. `ask` returns whether the user accepted; `run`
-/// executes the command. A command shared by several items runs once.
+/// Offers each fix in turn. `ask` returns whether the user accepted a
+/// single item; `choose` picks one member of a group of interchangeable
+/// models (or none), and is asked once per group with nothing installed.
+/// `run` executes the command. A command shared by several items runs once.
 pub fn install<E>(
     report: &Report,
     mut ask: impl FnMut(&Item) -> bool,
+    mut choose: impl FnMut(&str, &[&Item]) -> Option<usize>,
     mut run: impl FnMut(&str) -> Result<(), E>,
 ) -> Result<Vec<String>, E> {
     let mut ran: Vec<String> = Vec::new();
+    let mut groups_done: Vec<String> = Vec::new();
     for item in &report.items {
         let Some(fix) = &item.fix else { continue };
+        if let Some(group) = &item.group {
+            if groups_done.contains(group) || report.group_satisfied(Some(group)) {
+                continue;
+            }
+            groups_done.push(group.clone());
+            let members: Vec<&Item> = report
+                .items
+                .iter()
+                .filter(|i| i.group.as_deref() == Some(group.as_str()) && i.fix.is_some())
+                .collect();
+            if let Some(pick) = choose(group, &members).and_then(|k| members.get(k)) {
+                let cmd = pick.fix.clone().expect("members have a fix");
+                run(&cmd)?;
+                ran.push(cmd);
+            }
+            continue;
+        }
         if ran.contains(fix) {
             continue;
         }
@@ -255,6 +327,7 @@ mod tests {
             size: content.len() as u64,
             optional: false,
             purpose: "test",
+            group: None,
         }
     }
 
@@ -362,6 +435,7 @@ mod tests {
                 asked.push(item.name.clone());
                 item.name == "ffprobe"
             },
+            |_, _| None,
             |cmd| {
                 ran.push(cmd.to_string());
                 Ok::<(), std::convert::Infallible>(())
@@ -371,6 +445,69 @@ mod tests {
 
         assert_eq!(asked, ["ffmpeg", "ffprobe"]);
         assert_eq!(ran, ["brew install ffmpeg"]);
+    }
+
+    fn grouped(name: &'static str, content: &[u8]) -> ModelSpec {
+        ModelSpec {
+            optional: true,
+            group: Some("multilingual speech"),
+            purpose: "speech in other languages",
+            ..test_model(name, content)
+        }
+    }
+
+    #[test]
+    fn a_model_group_is_offered_once_as_a_choice_and_only_the_pick_is_fetched() {
+        let dir = tempfile::tempdir().unwrap();
+        let models = [
+            grouped("s.bin", b"s"),
+            grouped("m.bin", b"m"),
+            grouped("l.bin", b"l"),
+        ];
+        let report = check(&env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]), &models);
+        assert!(report.ok, "an optional group missing is fine");
+
+        let mut asked_yes_no = Vec::new();
+        let mut offered: Vec<Vec<String>> = Vec::new();
+        let mut ran = Vec::new();
+        install(
+            &report,
+            |item| {
+                asked_yes_no.push(item.name.clone());
+                false
+            },
+            |group, choices| {
+                assert_eq!(group, "multilingual speech");
+                offered.push(choices.iter().map(|c| c.name.clone()).collect());
+                Some(1)
+            },
+            |cmd| {
+                ran.push(cmd.to_string());
+                Ok::<(), std::convert::Infallible>(())
+            },
+        )
+        .unwrap();
+
+        assert!(
+            asked_yes_no.is_empty(),
+            "group members are not asked one by one"
+        );
+        assert_eq!(offered, [["s.bin", "m.bin", "l.bin"]]);
+        assert_eq!(ran.len(), 1);
+        assert!(ran[0].contains("m.bin"), "{ran:?}");
+    }
+
+    #[test]
+    fn a_group_with_one_member_installed_offers_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("m.bin"), b"m").unwrap();
+        let models = [
+            grouped("s.bin", b"s"),
+            grouped("m.bin", b"m"),
+            grouped("l.bin", b"l"),
+        ];
+        let report = check(&env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]), &models);
+        assert!(!report.has_offers());
     }
 
     fn optional_model(name: &'static str, content: &[u8]) -> ModelSpec {
@@ -432,15 +569,21 @@ mod tests {
                 "ggml-tiny.en.bin",
                 "text-detection.rten",
                 "text-recognition.rten",
-                "yamnet.onnx"
+                "yamnet.onnx",
+                "ggml-small.bin",
+                "ggml-medium.bin",
+                "ggml-large-v3.bin"
             ]
         );
-        let optional: Vec<_> = MODELS
+        let group: Vec<_> = MODELS
             .iter()
-            .filter(|m| m.optional)
+            .filter(|m| m.group == Some(MULTILINGUAL))
             .map(|m| m.file)
             .collect();
-        assert_eq!(optional, ["yamnet.onnx"]);
+        assert_eq!(
+            group,
+            ["ggml-small.bin", "ggml-medium.bin", "ggml-large-v3.bin"]
+        );
         assert!(MODELS
             .iter()
             .all(|m| m.sha256.len() == 64 && m.url.starts_with("https://")));
