@@ -515,16 +515,7 @@ fn sound(d: &mut String, x: &PromptInputs, clips: &[&model::Asset]) {
     let _ = writeln!(d, "|------|------|----|-------|---------|");
     let runs = music_runs(&a.music);
     for slot in template::slots(x.template) {
-        let mut music: Vec<String> = Vec::new();
-        for m in runs.iter().filter(|m| m.from < slot.to && m.to > slot.from) {
-            if let Some(l) = m.level_db {
-                music.push(format!("bed at about {} dB", num(l)));
-            }
-            if m.beat {
-                music.push("with a beat".to_string());
-            }
-        }
-        music.dedup();
+        let music = slot_music(&runs, slot.from, slot.to);
         let effects: Vec<String> = a
             .sounds
             .iter()
@@ -537,11 +528,7 @@ fn sound(d: &mut String, x: &PromptInputs, clips: &[&model::Asset]) {
             slot.name,
             slot.from,
             slot.to,
-            if music.is_empty() {
-                "none".to_string()
-            } else {
-                music.join(", ")
-            },
+            music,
             if effects.is_empty() {
                 "none".to_string()
             } else {
@@ -602,6 +589,28 @@ fn sound(d: &mut String, x: &PromptInputs, clips: &[&model::Asset]) {
          fits, and one of the user's sounds may land where the story needs it even if the original was \
          silent there. Before building, show the user your picks: which file, where, and why.\n"
     );
+}
+
+/// The music under frames `from..to`, in a few words: the loudest bed
+/// level and whether a beat runs; "none" without music.
+fn slot_music(runs: &[MusicRun], from: i64, to: i64) -> String {
+    let over: Vec<&MusicRun> = runs.iter().filter(|m| m.from < to && m.to > from).collect();
+    let level = over
+        .iter()
+        .filter_map(|m| m.level_db)
+        .max_by(f64::total_cmp);
+    let mut parts = Vec::new();
+    if let Some(l) = level {
+        parts.push(format!("bed at about {} dB", num(l)));
+    }
+    if over.iter().any(|m| m.beat) {
+        parts.push("with a beat".to_string());
+    }
+    if parts.is_empty() {
+        "none".to_string()
+    } else {
+        parts.join(", ")
+    }
 }
 
 /// Whether one of the user's sounds is like an effect in the original:
@@ -1106,6 +1115,27 @@ mod tests {
         );
         assert!(s.contains("pixabay.com/music"), "{s}");
         assert!(s.contains("freesound.org"), "{s}");
+    }
+
+    #[test]
+    fn a_slot_over_two_pieces_of_one_bed_names_it_once() {
+        let run = |from, to, level_db, beat| MusicRun {
+            from,
+            to,
+            level_db,
+            beat,
+        };
+        let runs = [
+            run(0, 100, Some(-37.9), false),
+            run(110, 300, Some(-37.8), false),
+        ];
+        assert_eq!(slot_music(&runs, 50, 200), "bed at about -37.8 dB");
+        assert_eq!(slot_music(&runs, 400, 500), "none");
+        let beat = [run(0, 100, None, true), run(100, 200, Some(-20.0), false)];
+        assert_eq!(
+            slot_music(&beat, 0, 200),
+            "bed at about -20 dB, with a beat"
+        );
     }
 
     #[test]

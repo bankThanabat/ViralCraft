@@ -137,6 +137,12 @@ pub fn guess_role(seconds: f64, beat_confidence: f64, words: usize) -> &'static 
     }
 }
 
+/// What a recording says, kept only for a voice: over music or a short
+/// effect whisper invents words.
+pub fn transcript_for(role: &str, words: &[model::Word]) -> Option<String> {
+    (role == "voice").then(|| audio::words::transcript(words, &[]))
+}
+
 /// Sound names heard most often first, each once, at most five.
 pub fn top_labels(sounds: &[model::SoundEvent]) -> Vec<String> {
     let mut counts: Vec<(String, usize)> = Vec::new();
@@ -423,8 +429,8 @@ fn read_sounds(
         heard.extend(audio::name_sounds(&samples, rate, zero)?);
         sound.labels = top_labels(&heard);
         sound.role = guess_role(sound.seconds, rhythm.tempo.confidence, words.len()).to_string();
-        if words.len() >= VOICE_MIN_WORDS {
-            sound.transcript = audio::words::transcript(&words, &[]);
+        if let Some(said) = transcript_for(&sound.role, &words) {
+            sound.transcript = said;
             sound.language = language;
         }
         out.push(sound);
@@ -589,6 +595,25 @@ mod tests {
         let err = resolve_sound_dirs(assets.path(), &[], |_| Some(empty.path().to_path_buf()))
             .unwrap_err();
         assert!(matches!(err, AssetsError::NoSounds(_)), "{err}");
+    }
+
+    #[test]
+    fn only_a_voice_recording_keeps_its_words() {
+        // Whisper "heard" "evo b motors" in a song with no singing.
+        let r = model::Fps::new(30, 1).unwrap();
+        let w = |t: &str| model::Word {
+            text: t.into(),
+            start: model::RationalTime::from_frames(0, r),
+            duration: model::RationalTime::from_frames(5, r),
+            confidence: 0.9,
+        };
+        let words = [w("evo"), w("b"), w("motors")];
+        assert_eq!(transcript_for("music", &words), None);
+        assert_eq!(transcript_for("effect", &words), None);
+        assert_eq!(
+            transcript_for("voice", &words).as_deref(),
+            Some("evo b motors")
+        );
     }
 
     #[test]
