@@ -44,8 +44,12 @@ pub fn api_key(var: &str) -> Option<String> {
     if !io::stdin().is_terminal() {
         return None;
     }
-    let question =
-        format!("{var} is not set. Paste your key (typing hidden, used for this run only): ");
+    // Pasting shows nothing, which looks broken unless the user is told.
+    let question = format!(
+        "{var} is not set. Paste your key and press Enter.\n\
+         The key stays hidden: nothing will show while you paste. It is used for this run only, never saved.\n\
+         Key: "
+    );
     rpassword::prompt_password(question)
         .ok()
         .map(|k| k.trim().to_string())
