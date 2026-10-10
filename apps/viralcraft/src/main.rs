@@ -263,8 +263,7 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
                 voice,
                 model,
             };
-            let v =
-                rebuild::voiceover::run(&run_dir, &script, &opts, |var| std::env::var(var).ok())?;
+            let v = rebuild::voiceover::run(&run_dir, &script, &opts, prompt::api_key)?;
             let too_long: Vec<&str> = v
                 .lines
                 .iter()

@@ -308,3 +308,38 @@ fn help_is_still_plain_text() {
     assert!(out.status.success());
     assert!(String::from_utf8_lossy(&out.stdout).starts_with("Turn a viral"));
 }
+
+#[test]
+fn a_missing_voice_key_with_no_one_to_ask_says_to_run_it_in_a_terminal() {
+    let dir = run_dir_with(&[
+        "probe.json",
+        "shots.json",
+        "audio.json",
+        "inspect.json",
+        "judgement.json",
+    ]);
+    let script = dir.path().join("script.txt");
+    std::fs::write(&script, "One\nTwo\n").unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_viralcraft"))
+        .args([
+            "voiceover",
+            dir.path().to_str().unwrap(),
+            "--engine",
+            "elevenlabs",
+            "--script",
+        ])
+        .arg(&script)
+        .env_remove("ELEVENLABS_API_KEY")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(1));
+    let summary = single_json_line(&out.stdout);
+    let error = summary["error"].as_str().unwrap();
+    assert!(error.contains("ELEVENLABS_API_KEY"), "{error}");
+    assert!(error.contains("your own terminal"), "{error}");
+    assert!(
+        !dir.path().join("rebuild/voiceover").exists(),
+        "nothing spoken without a key"
+    );
+}

@@ -23,7 +23,10 @@ const VOICE_DIR: &str = "voiceover";
 pub enum VoiceError {
     #[error("unknown voice engine {0:?}: use say, openai, elevenlabs, minimax, qwen or bytedance")]
     Engine(String),
-    #[error("{0} is not set: put your own API key in it, or use --engine say")]
+    #[error(
+        "{0} is not set. Run this command in your own terminal and it asks for the key (typing \
+         hidden, used for this run only), or `export {0}=<key>` there first, or use --engine say"
+    )]
     NoKey(&'static str),
     #[error("the script has {lines} lines for {captions} captions: write one line per caption")]
     Count { lines: usize, captions: usize },

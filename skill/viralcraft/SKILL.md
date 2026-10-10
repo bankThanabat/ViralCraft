@@ -132,8 +132,11 @@ Ask whether they want this format rebuilt with their own footage. If yes:
      does not. The user puts the key in `OPENAI_API_KEY`,
      `ELEVENLABS_API_KEY`, `MINIMAX_API_KEY`, `DASHSCOPE_API_KEY` (Qwen,
      Alibaba Model Studio) or `VOLCENGINE_API_KEY` (ByteDance) in the
-     shell that runs the CLI. Never ask them to paste a key into
-     the chat. Draft one line per
+     shell that runs the CLI, or runs the voiceover command in their own
+     terminal, where it asks for the key with hidden typing. If you run
+     it and the key is missing, it fails with a message saying so: give
+     the user the exact command to run in their terminal. Never ask them
+     to paste a key into the chat. Draft one line per
      caption in the original's language, voice and length, short enough to
      say before the next caption. Show the lines and wait for approval.
      Save them as `<run_dir>/rebuild/script.txt` and run

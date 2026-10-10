@@ -20,8 +20,10 @@ caption, with the engine the user picks: `say` by default, or a cloud
 voice with the user's own key: `openai`, `elevenlabs` (US), `minimax`,
 `qwen`, `bytedance` (China), from `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`,
 `MINIMAX_API_KEY`, `DASHSCOPE_API_KEY` or `VOLCENGINE_API_KEY`. The user asked for Chinese labs
-to be offered alongside the US ones. The key reaches curl on stdin and is never written
-to a file, logged, or put on a command line. Only the script text is sent.
+to be offered alongside the US ones. When the variable is unset, the CLI asks for the key
+in the user's terminal with hidden typing, for that run only. The key
+reaches curl on stdin and is never written to a file, logged, or put on a
+command line. Only the script text is sent.
 The agent never asks for a key in chat. Models and voices are flags, so a
 retired model is a flag change.
 

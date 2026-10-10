@@ -534,7 +534,10 @@ viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnosti
   JSON chunks of base64 that are joined). Keys come from
   `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `MINIMAX_API_KEY`,
   `DASHSCOPE_API_KEY` or `VOLCENGINE_API_KEY` and reach curl on stdin,
-  never its command line. `voiceover.json` records each line's caption, start
+  never its command line. When the variable is not set and someone is at
+  the terminal, the CLI asks for the key with hidden typing and uses it
+  for that run only; with no terminal (an agent running it) it fails and
+  says to run it in the user's own terminal. `voiceover.json` records each line's caption, start
   frame, length and whether it ends before the next caption; the prompt
   places the lines and uses their text as the captions, and refuses a
   voiceover made from a different script.

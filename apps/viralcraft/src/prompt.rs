@@ -1,6 +1,6 @@
 //! Questions to the user go to stderr; answers come from stdin.
 
-use std::io::{self, BufRead, Write};
+use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::PathBuf;
 
 /// Asks for a path. An empty answer or closed stdin is no answer.
@@ -32,4 +32,22 @@ fn ask(question: &str) -> Option<String> {
         }
         Ok(_) => Some(answer.trim().to_string()),
     }
+}
+
+/// A service key: from the environment, else asked for with hidden typing
+/// when someone is at the terminal. Used for this run only, never stored.
+/// `None` when it is not set and no one can be asked.
+pub fn api_key(var: &str) -> Option<String> {
+    if let Some(key) = std::env::var(var).ok().filter(|k| !k.trim().is_empty()) {
+        return Some(key);
+    }
+    if !io::stdin().is_terminal() {
+        return None;
+    }
+    let question =
+        format!("{var} is not set. Paste your key (typing hidden, used for this run only): ");
+    rpassword::prompt_password(question)
+        .ok()
+        .map(|k| k.trim().to_string())
+        .filter(|k| !k.is_empty())
 }
