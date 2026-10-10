@@ -330,6 +330,9 @@ fn a_missing_voice_key_with_no_one_to_ask_says_to_run_it_in_a_terminal() {
         ])
         .arg(&script)
         .env_remove("ELEVENLABS_API_KEY")
+        // Hide any signed-in `elevenlabs` tool on this machine, so the test
+        // means the same everywhere.
+        .env("PATH", "/nonexistent")
         .stdin(Stdio::null())
         .output()
         .unwrap();

@@ -126,6 +126,10 @@ impl Engine {
             Engine::Say => "Samantha",
             Engine::OpenAi => "marin",
             // The voice in ElevenLabs' API reference example.
+            // Thai: "Aom", from ElevenLabs' library; of its five Thai
+            // female voices, the closest to a Thai recipe narrator in
+            // pitch (+11%) and pace (-4%) when measured.
+            Engine::ElevenLabs if script.chars().any(is_thai) => "nealpwJT5tCyJFKDzEq8",
             Engine::ElevenLabs => "JBFqnCBsd6RMkjVDRZzb",
             // The voices in the providers' API reference examples.
             Engine::MiniMax => "English_expressive_narrator",
@@ -391,6 +395,53 @@ pub struct VoiceOptions {
     pub engine: Engine,
     pub voice: Option<String>,
     pub model: Option<String>,
+    /// Speak ElevenLabs lines through the user's signed-in `elevenlabs`
+    /// tool instead of a key.
+    pub elevenlabs_cli: bool,
+}
+
+/// Whether `elevenlabs auth status` output says the tool is signed in.
+pub fn elevenlabs_logged_in(status_json: &str) -> bool {
+    serde_json::from_str::<Value>(status_json).is_ok_and(|v| {
+        v["schemes"]
+            .as_array()
+            .is_some_and(|s| s.iter().any(|x| x["logged_in"] == true))
+    })
+}
+
+/// Whether ElevenLabs' own CLI is installed and signed in (its login
+/// lives in the system keychain, so no key is needed).
+pub fn elevenlabs_cli_ready() -> bool {
+    Command::new("elevenlabs")
+        .args(["auth", "status", "--format", "json"])
+        .output()
+        .is_ok_and(|o| {
+            o.status.success() && elevenlabs_logged_in(&String::from_utf8_lossy(&o.stdout))
+        })
+}
+
+/// The `elevenlabs` arguments that speak `text` into `out` (MP3). Thai is
+/// pinned so short lines are not read in another language.
+pub fn elevenlabs_cli_args(voice: &str, model: &str, text: &str, out: &Path) -> Vec<String> {
+    let mut args: Vec<String> = [
+        "text-to-speech",
+        "convert",
+        "--voice-id",
+        voice,
+        "--model-id",
+        model,
+        "--text",
+        text,
+        "--output",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
+    args.push(out.display().to_string());
+    if text.chars().any(is_thai) {
+        args.extend(["--language-code".to_string(), "th".to_string()]);
+    }
+    args
 }
 
 /// Speaks every line of `script` into `rebuild/voiceover/` and writes
@@ -407,7 +458,9 @@ pub fn run(
     let captions = crate::prompt::rebuilt_captions(&inputs);
     let placed = plan(&captions, &lines, inputs.probe.frames)?;
     let engine = opts.engine;
+    let use_cli = engine == Engine::ElevenLabs && opts.elevenlabs_cli;
     let api_key = match engine.key_var() {
+        _ if use_cli => None,
         Some(var) => Some(
             key(var)
                 .filter(|k| !k.trim().is_empty())
@@ -431,7 +484,19 @@ pub fn run(
     for (i, ((caption, start, room), line)) in placed.into_iter().zip(&lines).enumerate() {
         eprintln!("voiceover: line {} of {}", i + 1, lines.len());
         let raw = dir.join(format!("line-{:02}.raw", i + 1));
-        speak(engine, &model, &voice, line, api_key.as_deref(), &raw)?;
+        if use_cli {
+            let mp3 = raw.with_extension("mp3");
+            tools::run(
+                "elevenlabs",
+                &elevenlabs_cli_args(&voice, &model, line, &mp3)
+                    .iter()
+                    .map(String::as_str)
+                    .collect::<Vec<_>>(),
+            )?;
+            fs::rename(&mp3, &raw).map_err(io_err(&raw))?;
+        } else {
+            speak(engine, &model, &voice, line, api_key.as_deref(), &raw)?;
+        }
         let name = format!("line-{:02}.wav", i + 1);
         let wav = dir.join(&name);
         tools::run(
@@ -783,6 +848,54 @@ mod tests {
     }
 
     #[test]
+    fn the_elevenlabs_tool_is_used_when_signed_in() {
+        let status = r#"{"backend":"macOS Keychain","schemes":[{"cli":"elevenlabs","logged_in":true,"scheme":"OAuth"}]}"#;
+        assert!(elevenlabs_logged_in(status));
+        let out = r#"{"schemes":[{"cli":"elevenlabs","logged_in":false}]}"#;
+        assert!(!elevenlabs_logged_in(out));
+        assert!(!elevenlabs_logged_in("not json"));
+    }
+
+    #[test]
+    fn the_elevenlabs_tool_gets_the_voice_model_text_and_language() {
+        let args = elevenlabs_cli_args("VID", "eleven_v3", "ตักมัทฉะ", Path::new("/tmp/l.mp3"));
+        assert_eq!(
+            args,
+            [
+                "text-to-speech",
+                "convert",
+                "--voice-id",
+                "VID",
+                "--model-id",
+                "eleven_v3",
+                "--text",
+                "ตักมัทฉะ",
+                "--output",
+                "/tmp/l.mp3",
+                "--language-code",
+                "th",
+            ]
+        );
+        let en = elevenlabs_cli_args("VID", "eleven_v3", "Hello", Path::new("/tmp/l.mp3"));
+        assert!(
+            !en.contains(&"--language-code".to_string()),
+            "only Thai is pinned"
+        );
+    }
+
+    #[test]
+    fn a_thai_script_gets_a_thai_elevenlabs_voice() {
+        assert_eq!(
+            Engine::ElevenLabs.default_voice("ตักมัทฉะ 4g"),
+            "nealpwJT5tCyJFKDzEq8"
+        );
+        assert_eq!(
+            Engine::ElevenLabs.default_voice("Sift the matcha"),
+            "JBFqnCBsd6RMkjVDRZzb"
+        );
+    }
+
+    #[test]
     fn the_key_goes_in_curls_config_quoted() {
         let r = request(Engine::OpenAi, "m", "v", "t", "sk-\"odd\\").unwrap();
         let c = curl_config(&r, Path::new("/tmp/b.json"), Path::new("/tmp/o.raw"));
@@ -844,6 +957,7 @@ mod tests {
                 engine: Engine::OpenAi,
                 voice: None,
                 model: None,
+                elevenlabs_cli: false,
             },
             |_| None,
         );
@@ -861,6 +975,7 @@ mod tests {
                 engine: Engine::OpenAi,
                 voice: None,
                 model: None,
+                elevenlabs_cli: false,
             },
             |_| None,
         )

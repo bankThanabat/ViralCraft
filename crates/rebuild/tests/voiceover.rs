@@ -38,6 +38,7 @@ fn speak(engine: Engine) {
         engine,
         voice: None,
         model: None,
+        elevenlabs_cli: false,
     };
     let v = run(dir.path(), &script, &opts, |k| std::env::var(k).ok()).unwrap();
 
@@ -100,4 +101,36 @@ fn which(tool: &str) -> bool {
         .arg(tool)
         .output()
         .is_ok_and(|o| o.status.success())
+}
+
+#[test]
+#[ignore = "needs ElevenLabs' own CLI, signed in (`elevenlabs auth login`); uses a few credits"]
+fn the_signed_in_elevenlabs_tool_speaks_thai() {
+    if !rebuild::voiceover::elevenlabs_cli_ready() {
+        eprintln!("skipping: the elevenlabs tool is not installed or not signed in");
+        return;
+    }
+    let dir = cuts3_run();
+    let script = dir.path().join("script.txt");
+    fs::write(&script, "หนึ่ง\nสอง\n").unwrap();
+    let opts = VoiceOptions {
+        engine: Engine::ElevenLabs,
+        voice: None,
+        model: None,
+        elevenlabs_cli: true,
+    };
+    let v = run(dir.path(), &script, &opts, |_| None).unwrap();
+    assert_eq!(
+        v.voice, "nealpwJT5tCyJFKDzEq8",
+        "a Thai script gets a Thai voice"
+    );
+    for l in &v.lines {
+        assert!(dir.path().join(&l.file).is_file(), "{}", l.file);
+        assert!(
+            l.seconds > 0.2 && l.seconds < 3.0,
+            "{} lasts {}",
+            l.text,
+            l.seconds
+        );
+    }
 }

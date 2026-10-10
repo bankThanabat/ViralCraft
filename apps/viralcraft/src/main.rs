@@ -258,10 +258,19 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
             voice,
             model,
         } => {
+            let engine = rebuild::voiceover::Engine::parse(&engine)?;
+            // A key wins; else ElevenLabs' own signed-in tool; else ask.
+            let elevenlabs_cli = engine == rebuild::voiceover::Engine::ElevenLabs
+                && std::env::var("ELEVENLABS_API_KEY").map_or(true, |k| k.trim().is_empty())
+                && rebuild::voiceover::elevenlabs_cli_ready();
+            if elevenlabs_cli {
+                eprintln!("voiceover: using your signed-in elevenlabs tool");
+            }
             let opts = rebuild::voiceover::VoiceOptions {
-                engine: rebuild::voiceover::Engine::parse(&engine)?,
+                engine,
                 voice,
                 model,
+                elevenlabs_cli,
             };
             let v = rebuild::voiceover::run(&run_dir, &script, &opts, prompt::api_key)?;
             let too_long: Vec<&str> = v
