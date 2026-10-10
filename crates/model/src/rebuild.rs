@@ -12,7 +12,7 @@ pub struct Assets {
     pub folder: String,
     pub clips: Vec<Asset>,
     /// Music, sound effects and recordings the user added, in the folder
-    /// or one level below it. Which to use where is the agent's choice.
+    /// or any subfolder of it. Which to use where is the agent's choice.
     #[serde(default)]
     pub sounds: Vec<SoundAsset>,
 }

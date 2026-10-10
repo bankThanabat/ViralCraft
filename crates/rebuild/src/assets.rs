@@ -79,34 +79,33 @@ fn has_ext(p: &Path, exts: &[&str]) -> bool {
     !name.starts_with('.') && exts.contains(&ext.to_lowercase().as_str())
 }
 
-/// Audio files in `dir` and in its subfolders one level down (so music and
-/// effects can sit in `assets/music/` or `assets/sounds/`), with their path
-/// inside `dir`, ordered by that path.
+/// Audio files in `dir` and in every subfolder below it (so effects can be
+/// sorted like `assets/sounds/memes/`), skipping hidden files and folders,
+/// with their path inside `dir`, ordered by that path.
 pub fn find_sounds(dir: &Path) -> Result<Vec<(PathBuf, String)>, AssetsError> {
     if !dir.is_dir() {
         return Ok(Vec::new());
     }
-    let list = |d: &Path| -> Result<Vec<PathBuf>, AssetsError> {
-        Ok(fs::read_dir(d)
-            .map_err(io_err(d))?
+    let mut found = Vec::new();
+    let mut folders = vec![dir.to_path_buf()];
+    while let Some(d) = folders.pop() {
+        for p in fs::read_dir(&d)
+            .map_err(io_err(&d))?
             .filter_map(Result::ok)
             .map(|e| e.path())
-            .collect())
-    };
-    let mut found = Vec::new();
-    for p in list(dir)? {
-        let hidden = p
-            .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n.starts_with('.'));
-        if p.is_dir() && !hidden {
-            found.extend(
-                list(&p)?
-                    .into_iter()
-                    .filter(|q| q.is_file() && has_ext(q, &AUDIO_EXTENSIONS)),
-            );
-        } else if p.is_file() && has_ext(&p, &AUDIO_EXTENSIONS) {
-            found.push(p);
+        {
+            let hidden = p
+                .file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with('.'));
+            if hidden {
+                continue;
+            }
+            if p.is_dir() {
+                folders.push(p);
+            } else if p.is_file() && has_ext(&p, &AUDIO_EXTENSIONS) {
+                found.push(p);
+            }
         }
     }
     let mut out: Vec<(PathBuf, String)> = found
@@ -489,10 +488,12 @@ mod tests {
     }
 
     #[test]
-    fn audio_files_are_found_in_the_folder_and_one_level_below() {
+    fn audio_files_are_found_in_every_subfolder() {
+        // Users sort effects by category: assets/sounds/memes/bruh.mp3.
         let dir = tempfile::tempdir().unwrap();
         let d = dir.path();
-        fs::create_dir_all(d.join("sounds/deeper")).unwrap();
+        fs::create_dir_all(d.join("sounds/memes")).unwrap();
+        fs::create_dir_all(d.join(".cache/x")).unwrap();
         fs::create_dir_all(d.join("music")).unwrap();
         for f in [
             "song.MP3",
@@ -500,7 +501,8 @@ mod tests {
             ".hidden.wav",
             "sounds/whoosh.wav",
             "sounds/notes.txt",
-            "sounds/deeper/too-deep.wav",
+            "sounds/memes/bruh.mp3",
+            ".cache/x/skip.wav",
             "music/bed.m4a",
         ] {
             fs::write(d.join(f), b"x").unwrap();
@@ -510,7 +512,15 @@ mod tests {
             .into_iter()
             .map(|(_, rel)| rel)
             .collect();
-        assert_eq!(got, ["music/bed.m4a", "song.MP3", "sounds/whoosh.wav"]);
+        assert_eq!(
+            got,
+            [
+                "music/bed.m4a",
+                "song.MP3",
+                "sounds/memes/bruh.mp3",
+                "sounds/whoosh.wav"
+            ]
+        );
     }
 
     #[test]

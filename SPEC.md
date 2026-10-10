@@ -504,8 +504,8 @@ viralcraft prompt <RUN_DIR> [--script FILE]  # REBUILD-PROMPT.md: editor-agnosti
   `<RUN_DIR>/rebuild/rebuild.mp4` and the project to
   `<RUN_DIR>/rebuild/rebuild.fcproj`. The skill checks for `filmcraft-cli`
   and tells the user how to get it if missing; `doctor` does not.
-- **The user's music and effects.** Audio files in the assets folder, one
-  level of subfolders, or extra `--sounds` folders are read too (never
+- **The user's music and effects.** Audio files anywhere in the assets folder
+  (subfolders too, e.g. `assets/sounds/memes/`) or in extra `--sounds` folders are read too (never
   changed) into `assets.json`'s `sounds`: length, tempo when a beat
   repeats over at least 4 s, loudness, what YAMNet hears, and a transcript
   for recordings with speech. `role` (music, effect, voice) is only a
