@@ -118,8 +118,8 @@ crates/exports/            → OTIO and WebVTT writers
 crates/template/           → TEMPLATE.md scaffold
 crates/rebuild/            → optional rebuild: assets.json, REBUILD-PROMPT.md
 crates/model/              → shared serde types for every JSON file below
-skill/viralcraft/          → the core agent skill: SKILL.md, judgement guide, example
-skill/viralcraft-filmcraft/ → the FilmCraft editor skill and its command reference
+.claude/skills/viralcraft/          → the core agent skill: SKILL.md, judgement guide, example
+.claude/skills/viralcraft-filmcraft/ → the FilmCraft editor skill and its command reference
 tests/fixtures/            → two tiny generated videos (see Testing)
 docs/intent/               → confirmed intent
 docs/adr/                  → decisions (Rust, agent-side judgement, ffmpeg-only,
