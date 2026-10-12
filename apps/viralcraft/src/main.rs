@@ -176,8 +176,8 @@ fn main() -> ExitCode {
     };
     let mut summary = summary;
     summary["command"] = json!(name);
-    // The wizard talks to a person; its JSON line is only for a program.
-    if !(name == "setup" && std::io::stdout().is_terminal()) {
+    let wizard_on_a_terminal = name == "setup" && std::io::stdout().is_terminal();
+    if !wizard_on_a_terminal {
         println!("{summary}");
     }
     if ok {

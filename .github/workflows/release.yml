@@ -22,7 +22,6 @@ jobs:
           cargo="v$(python3 -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])")"
           echo "tag=$GITHUB_REF_NAME package.json=$pkg Cargo.toml=$cargo"
           [ "$GITHUB_REF_NAME" = "$pkg" ] && [ "$pkg" = "$cargo" ]
-      # Created once here so the parallel builds do not race to create it.
       - name: Create the release if missing
         run: gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
 

@@ -1,5 +1,3 @@
-// npm postinstall: put a working viralcraft binary in bin/native and prepare
-// the folder. Every step is safe to rerun.
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
