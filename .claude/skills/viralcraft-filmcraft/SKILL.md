@@ -27,7 +27,8 @@ Without MCP tools, use the **CLI**, `filmcraft-cli`: `import`, then
 `run <file.jsonl>` for batches of commands, `inspect`, `render`, `export`.
 
 If neither is there, stop and tell the user how to set it up:
-- get FilmCraft (it includes `filmcraft-cli`)
+- get FilmCraft (it includes `filmcraft-cli`):
+  https://getartcraft.com/apps/filmcraft
 - for MCP in Claude Code:
   `claude mcp add filmcraft -- filmcraft-cli mcp`
   (add `--bridge 127.0.0.1:<port>` to drive the open app)
@@ -37,12 +38,14 @@ If neither is there, stop and tell the user how to set it up:
 - `REBUILD-PROMPT.md` must exist. If not, run the `viralcraft` skill's
   rebuild step first (`viralcraft assets`, then `viralcraft prompt`).
 - If the prompt says caption text must be drafted, or written from the
-  clips' speech, write the lines and show them to the user. Wait for their
-  OK before building.
+  clips' speech, write the lines.
 - Choose a clip for every slot and shot. Look at each clip's thumbnail
   (`rebuild/thumbs/*.jpg`) and match the slot's "fill with". Pick the part
   of the clip to use (`sourceIn`): the moment that matches, not always the
-  start. Tell the user your picks in a short list.
+  start.
+- Show the user one plan: the caption lines, the clip for each slot, and
+  the music and effects picked for each slot with why. Wait for one OK,
+  and change what they ask before building.
 
 ## 2. Build
 

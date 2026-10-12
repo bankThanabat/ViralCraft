@@ -1,6 +1,6 @@
 ---
 name: viralcraft
-description: Turns a viral short-form video (TikTok, Reels, Shorts) into a blind-rebuild-quality edit spec and a reusable format template, then optionally rebuilds that format from the user's own clips. Use when the user says "analyze this viral video", "copy this format", "break down this edit", "what makes this video work", "make a template from this video", or drops a video in ./inbox/.
+description: Turns a viral short-form video (TikTok, Reels, Shorts) into a blind-rebuild-quality edit spec and a reusable format template, then rebuilds that format from the user's own clips. Use when the user says "copy this video with my clips", "make my clips look like this video", "analyze this viral video", "break down this edit", "make a template from this video", or drops a video in ./inbox/.
 ---
 
 # ViralCraft
@@ -11,21 +11,28 @@ You add the judgement it cannot make: what each shot is, what kind each caption
 is, the hook, the story, the look's name. Then the CLI writes the finished
 EDIT-SPEC.md, captions, timeline and TEMPLATE.md.
 
+Run every `viralcraft` command as `npx viralcraft ...` from this folder.
 Every `viralcraft` command prints exactly one JSON line on stdout
 (`{"command": ..., "ok": ...}`), also on failure. Read that line; progress goes
 to stderr. Never edit measured files (`*.json` other than `judgement.json`).
 
+**Copy mode.** When the user asks to copy the video with their clips, or
+`./assets/` holds video clips, they want the rebuild: run every step through
+step 6 without asking whether to rebuild, and save the questions for the one
+plan they approve before the build (step 6).
+
 ## 0. The binary
 
-Run `viralcraft --version`. If it is missing and this is the ViralCraft repo,
-build it with `cargo install --path apps/viralcraft`. Otherwise ask the user
-where it is installed.
+Run `npx viralcraft --version`. If it fails, run `npm install` in this
+folder, then try again.
 
 ## 1. Tools and models
 
-Run `viralcraft doctor`. When `ok` is false, show the user each missing item
-and its install command from `items[].fix`, and run the commands only after
-they say yes. Never install without asking.
+Run `viralcraft doctor`. When `ok` is false, ask the user to run
+`npm run setup` in their own terminal: a wizard that asks before it
+installs anything. If they would rather you do it, show each
+missing item and its install command from `items[].fix`, and run the
+commands only after they say yes. Never install without asking.
 
 Optional items (`optional: true`) are features, not failures. Offer them once:
 - sound-effect names (YAMNet, 16 MB)
@@ -97,29 +104,30 @@ the measured lines; a slot whose frames changed comes back as `TODO`.
 Tell the user what the format is in two or three plain sentences and where
 the files are.
 
-## 6. Optional: rebuild with the user's clips
+## 6. Rebuild with the user's clips
 
-Ask whether they want this format rebuilt with their own footage. If yes:
-1. If the original has music or named sound effects (EDIT-SPEC.md's Sound
-   section), ask whether the user has music or effects to use. They can
-   put the files in `./assets/` (a subfolder such as `assets/music/` or
-   `assets/sounds/` is fine), or tell you a folder anywhere else. If they
-   have none, suggest free sources: Pixabay Music and Sound Effects (no
-   credit needed), Freesound (pick CC0 sounds), the YouTube Audio Library.
-   Never take sounds out of TikTok's or CapCut's own libraries: their
-   licences keep them inside those apps.
-2. `viralcraft assets <run_dir> [--sounds <folder>]...` reads the clips in
-   `./assets/` and every audio file there and in `--sounds` folders. If
-   the JSON error says there are no clips, ask the user for the folder
-   and pass `--assets <folder>`. Everything is only read, never changed.
+In copy mode, go straight on. Otherwise ask whether they want this format
+rebuilt with their own footage. If yes:
+1. `viralcraft assets <run_dir> [--sounds <folder>]...` reads the clips in
+   `./assets/` and every audio file there (any subfolder, such as
+   `assets/music/`) and in `--sounds` folders. If the JSON error says
+   there are no clips, ask the user for the folder and pass
+   `--assets <folder>`. Everything is only read, never changed.
    If a clip or sound has `duplicate_of`, tell the user it is a copy.
    Each sound gets a `role` guess (music, effect, voice): a guess, not a
-   decision. When it finds no sounds it asks once, which you cannot answer
-   for the user: if `sounds` is empty, ask the user in chat where their
-   music and effects are, and run it again with `--sounds <folder>`, or
-   go on without sounds if they have none.
-3. Ask for a script: the caption lines they want, one per line. If they give
-   one, save it as `<run_dir>/rebuild/script.txt` and pass `--script`.
+   decision.
+2. If `sounds` is empty and the original has music or named sound effects
+   (EDIT-SPEC.md's Sound section), ask once where the user's music and
+   effects are, and run it again with `--sounds <folder>`, or go on
+   without sounds if they have none. If they have none, suggest free
+   sources: Pixabay Music and Sound Effects (no credit needed), Freesound
+   (pick CC0 sounds), the YouTube Audio Library. Never take sounds out of
+   TikTok's or CapCut's own libraries: their licences keep them inside
+   those apps.
+3. If the user gave caption lines, save them one per line as
+   `<run_dir>/rebuild/script.txt` and pass `--script`. Otherwise the
+   captions come from the speech in their clips, and they can change any
+   line when they approve the plan.
 4. No script, and no clip has speech (`words` is 0 for every clip in the
    assets JSON)? Then there is nothing to caption from. Ask the user to
    choose:
@@ -159,11 +167,13 @@ Ask whether they want this format rebuilt with their own footage. If yes:
    with what was measured. Pick music and effects for each slot by what
    that part of the story does (the hook grabs, the steps stay calm, the
    payoff lands), matching the original's energy, tempo and loudness, not
-   by file names. Leave an effect out when nothing fits. Tell the user
-   which file goes where and why, and wait for their OK.
+   by file names. Leave an effect out when nothing fits.
 7. Hand the prompt to an editor skill. With FilmCraft, use the
-   `viralcraft-filmcraft` skill. Without an editor skill, give the user the
-   prompt's path.
+   `viralcraft-filmcraft` skill: it shows the user one plan (caption
+   lines, a clip for each slot, and your sound picks with why) and waits
+   for one OK before building. Without an editor skill, show the sound
+   picks, then give the user the prompt's path; any editor agent can
+   follow it. FilmCraft is free: https://getartcraft.com/apps/filmcraft
 
 ## 7. Clean up
 
