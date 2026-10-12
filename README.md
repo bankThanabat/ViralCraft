@@ -91,6 +91,7 @@ viralcraft clean <RUN_DIR>              # delete the large frames/ and source.cf
 
 Every command prints exactly one JSON line on stdout, also on failure
 (`{"command": ..., "ok": false, "error": ...}`), and its progress on stderr.
+`setup` leaves the JSON line out when its output goes to a terminal.
 
 **Voiceover.** When your clips have no talking and you have no script, the
 agent can write lines for you to approve and read them aloud. The `say`
