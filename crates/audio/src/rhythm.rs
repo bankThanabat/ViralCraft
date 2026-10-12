@@ -188,7 +188,7 @@ fn estimate_tempo(flux: &[f64]) -> Tempo {
         }
         let bpm = 60.0 * fr / lag as f64;
         let weight = (-0.5 * (bpm / PRIOR_BPM).log2().powi(2)).exp();
-        if best.map_or(true, |(_, s)| r * weight > s) {
+        if best.is_none_or(|(_, s)| r * weight > s) {
             best = Some((lag, r * weight));
         }
     }

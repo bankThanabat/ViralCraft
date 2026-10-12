@@ -110,7 +110,7 @@ Japanese, Spanish and other languages, choose a multilingual model in
 ## Develop
 
 ViralCraft is a Rust workspace: the CLI in `apps/viralcraft`, one crate per
-stage in `crates/`. You need Rust 1.80+ and ffmpeg.
+stage in `crates/`. You need Rust 1.94+ and ffmpeg.
 
 ```
 npm run build                            # cargo build --release, into bin/native/
@@ -126,7 +126,9 @@ the OTIO round trip.
 
 `npm install` downloads a prebuilt binary from this repo's GitHub release
 for the version in `package.json`. When there is none for your platform, it
-builds from source if Rust is installed. Pushing a tag `vX.Y.Z` runs
+builds from source if Rust is installed. The prebuilt x64 binaries need
+a CPU with AVX2 (Intel and AMD from about 2013 on); on an older CPU, run
+`npm run build` to compile for your own machine. Pushing a tag `vX.Y.Z` runs
 `.github/workflows/release.yml`, which builds macOS, Linux and Windows
 binaries, uploads them, and checks `npm install` against them.
 
