@@ -1,0 +1,23 @@
+{
+  "name": "viralcraft",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn a viral short-form video into an edit spec, then rebuild it from your own clips",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bankThanabat/ViralCraft"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "viralcraft": "bin/viralcraft.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/install.mjs",
+    "setup": "node bin/viralcraft.js setup",
+    "build": "node scripts/install.mjs --source"
+  }
+}
