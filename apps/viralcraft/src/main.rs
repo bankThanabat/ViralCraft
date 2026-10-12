@@ -10,6 +10,7 @@ mod pipeline;
 mod prompt;
 mod setup_cmd;
 
+use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -175,7 +176,10 @@ fn main() -> ExitCode {
     };
     let mut summary = summary;
     summary["command"] = json!(name);
-    println!("{summary}");
+    // The wizard talks to a person; its JSON line is only for a program.
+    if !(name == "setup" && std::io::stdout().is_terminal()) {
+        println!("{summary}");
+    }
     if ok {
         ExitCode::SUCCESS
     } else {
