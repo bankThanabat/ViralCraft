@@ -1,124 +1,118 @@
 # ViralCraft
 
-Drop in a viral short video. Get back an edit spec precise enough to rebuild
-it blind: every cut, caption (text, font, size, colour, position, timing),
-camera move, sound effect, music bed and story beat, as numbers. Also get a
-reusable template of the format, and optionally a rebuild of that format
-with your own clips.
+Copy the edit of a viral short video onto your own clips.
 
-The `viralcraft` CLI measures. An AI agent (Claude Code, Codex, Cursor)
-running the `viralcraft` skill looks at the frames and adds the judgement:
-what each shot is for, why the hook works, which text is a caption and which
-is scene text. See `docs/adr/` for why it is split this way.
+Give ViralCraft a TikTok, Reel or Short that works. It measures every cut,
+caption, camera move, sound effect and music cue, then rebuilds the same
+format from your clips, with your words and your music. You talk to an AI
+agent (Claude Code or Codex) in plain words; the agent runs ViralCraft for
+you.
 
-## Install
+## Copy a video with your clips
 
-Needs Rust 1.80+ and ffmpeg.
+You need [Node.js](https://nodejs.org) 18 or newer and
+[git](https://git-scm.com/downloads). Then, in a terminal:
 
 ```
-cargo install --path apps/viralcraft
-viralcraft doctor
+git clone https://github.com/bankThanabat/ViralCraft
+cd ViralCraft
+npm install
+npm run setup
 ```
 
-`doctor` checks ffmpeg, ffprobe and the model files (speech, text
-detection and recognition). `viralcraft doctor --install` offers to install
-or download each missing item and asks first. It also offers two optional
-features: sound-effect names (16 MB), and speech in other languages
-(choose small 0.5 GB, medium 1.5 GB or large 3.1 GB).
+`npm install` fetches the `viralcraft` program. `npm run setup` is a wizard
+that installs the rest: ffmpeg, which reads video, and 90 MB of speech and
+text models. It asks before it installs anything, and you can run it again
+at any time.
 
-Install the skills by copying them into your agent's skills folder, e.g.
-for Claude Code in this project:
+1. Put the viral video in the `inbox/` folder.
+2. Put your clips in the `assets/` folder. Add any music or sound effects
+   you want to use there too.
+3. Open [Claude Code](https://claude.com/claude-code) or Codex in the
+   `ViralCraft` folder and say:
+
+   > copy this video with my clips
+
+The agent analyzes the video, looks at its frames, and picks a clip of yours
+for every shot and a sound for every cue. It shows you the plan (captions,
+clips, music) and waits for your OK. Then it builds the video in
+[FilmCraft](https://getartcraft.com/apps/filmcraft), a free video editor,
+and exports `rebuild.mp4`. Without FilmCraft you still get the full edit
+plan, which any editor or editing agent can follow.
+
+Your files in `inbox/` and `assets/` are only read, never changed.
+Everything ViralCraft writes goes to `out/<video name>/`.
+
+Need music? Pixabay Music and Sound Effects, Freesound (pick CC0 sounds) and
+the YouTube Audio Library are free. Sounds from TikTok's or CapCut's own
+libraries are licensed for use inside those apps only.
+
+## What you get
+
+Even without a rebuild, every analysis leaves these files in
+`out/<video name>/`:
+
+| File | What it is |
+|------|------------|
+| `EDIT-SPEC.md` | The whole edit as numbers: hook, shots, captions (text, font, size, colour, position, timing), overlays, transitions, sound, look, story beats. |
+| `TEMPLATE.md` | The format without the content: slots, timings, and the rules an editor must keep. |
+| `timeline.otio` | An OpenTimelineIO timeline for editors that open OTIO. |
+| `captions.vtt`, `captions.ass` | The captions with word times (VTT), and with style and position (ASS). |
+| `rebuild/REBUILD-PROMPT.md` | Step-by-step rebuild instructions with your clips. |
+| `rebuild/rebuild.mp4` | The finished video, when FilmCraft built it. |
+
+The analysis is split in two. The `viralcraft` program measures what can be
+measured. The agent looks at the frames and adds the judgement: what each
+shot is for, why the hook works, which text is a caption and which is a
+sign in the scene. `docs/adr/` explains why.
+
+## Commands
+
+The agent runs these for you. To run one yourself, use `npx viralcraft` in
+the `ViralCraft` folder.
 
 ```
-mkdir -p .claude/skills
-cp -r skill/viralcraft skill/viralcraft-filmcraft .claude/skills/
-```
-
-## Use it through the agent
-
-Put the video in `./inbox/` and ask your agent "analyze this viral video".
-The skill runs the steps below, reviews the frames and finishes the spec.
-
-## The steps
-
-```
-viralcraft doctor [--install]           # check tools and models; --install asks per item
-viralcraft analyze [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE] [--threshold N]
-                                        # full pipeline; FILE defaults to the
-                                        # single file in --inbox, else asks
-viralcraft finalize <RUN_DIR>           # after the agent fills judgement.json:
-                                        # merge into EDIT-SPEC.md, write OTIO
-                                        # metadata, captions.ass/.vtt, TEMPLATE.md
-viralcraft assets <RUN_DIR> [--assets DIR] [--sounds DIR]...
-                                        # optional rebuild: read the user's clips and sounds
+viralcraft setup                        # wizard: install ffmpeg and the models, asking first
+viralcraft doctor                       # check tools and models, change nothing
+viralcraft analyze [FILE]               # measure the video, write a draft EDIT-SPEC.md
+viralcraft finalize <RUN_DIR>           # merge the agent's judgement.json, write the spec,
+                                        # captions, timeline and TEMPLATE.md
+viralcraft assets <RUN_DIR> [--sounds DIR]...
+                                        # read your clips and sounds for the rebuild
 viralcraft prompt <RUN_DIR> [--script FILE] [--no-captions]
-                                        # optional rebuild: REBUILD-PROMPT.md
-viralcraft voiceover <RUN_DIR> --script FILE [--voice V] [--model M]
-                                [--engine say|openai|elevenlabs|minimax|qwen|bytedance]
-                                        # optional rebuild: AI voice per caption
-viralcraft clean <RUN_DIR>              # delete frames/ and source.cfr.mp4
-viralcraft ingest [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE]
-viralcraft shots <RUN_DIR> [--threshold N]   # run one stage on an existing run dir;
-viralcraft audio <RUN_DIR>              # same for inspect, editspec, exports
+                                        # write rebuild/REBUILD-PROMPT.md
+viralcraft voiceover <RUN_DIR> --script FILE [--engine ENGINE]
+                                        # an AI voice reads each caption line
+viralcraft clean <RUN_DIR>              # delete the large frames/ and source.cfr.mp4
 ```
 
-Every command prints one JSON line on stdout, also on failure
+`analyze` takes the only video in `inbox/` when you leave out `FILE`.
+`viralcraft <command> --help` lists every option.
+
+Every command prints exactly one JSON line on stdout, also on failure
 (`{"command": ..., "ok": false, "error": ...}`), and its progress on stderr.
 
-1. **Analyze.** `viralcraft analyze` writes `out/<video name>/` with the
-   measurements, every frame, and a draft `EDIT-SPEC.md` whose judgement
-   slots say `TODO:`.
-2. **Review.** The agent looks at the frames and writes `judgement.json`
-   (the skill's `references/judgement-guide.md` covers each field).
-3. **Finalize.** `viralcraft finalize out/<video name>` checks the judgement,
-   lists anything missing, and writes the finished `EDIT-SPEC.md`,
-   `captions.vtt`, `captions.ass`, `timeline.otio` and a draft
-   `TEMPLATE.md`. The agent then fills the template's "fill with" column and
-   rules.
+**Voiceover.** When your clips have no talking and you have no script, the
+agent can write lines for you to approve and read them aloud. The `say`
+engine is free and uses your Mac's own voices. `openai`, `elevenlabs`,
+`minimax`, `qwen` and `bytedance` sound natural and use your own key in
+`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `MINIMAX_API_KEY`,
+`DASHSCOPE_API_KEY` or `VOLCENGINE_API_KEY`. When a key is missing, the
+command asks for it in your terminal with hidden typing and never saves it.
+If you sign in to ElevenLabs' own CLI (`elevenlabs auth login`),
+`--engine elevenlabs` needs no key.
 
-## Optional: rebuild with your clips
-
-Put your clips in `./assets/`, and any music or sound effects you want to
-use too (a subfolder like `assets/sounds/` is fine; `--sounds <folder>`
-reads them from anywhere else). They are only read, never changed. The
-AI picks which music and effects go where by the story the video tells,
-and shows you its picks before building. Free sources: Pixabay Music and
-Sound Effects, Freesound (CC0), the YouTube Audio Library.
-
-1. `viralcraft assets out/<video name>` probes each clip, transcribes any
-   speech, names sounds, and saves a thumbnail strip, all in
-   `out/<video name>/rebuild/`.
-2. `viralcraft prompt out/<video name> [--script lines.txt]` writes
-   `rebuild/REBUILD-PROMPT.md`: steps any editor agent can follow. Caption
-   text comes from your script (one line per caption), else from the speech
-   in your clips, else the agent drafts lines for you to approve.
-   If your clips have no talking and you have no script, you choose: an
-   AI voiceover (the agent writes the lines, you approve them, and
-   `viralcraft voiceover` reads them aloud with the Mac's own voices for
-   free, or with OpenAI, ElevenLabs, MiniMax, Qwen or ByteDance using
-   your own key in `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`,
-   `MINIMAX_API_KEY`, `DASHSCOPE_API_KEY` or `VOLCENGINE_API_KEY`), or no
-   captions (`--no-captions`).
-3. With FilmCraft, the `viralcraft-filmcraft` skill builds it: clips cut to
-   the slots, captions as styled editable text, music and sounds placed,
-   exported to `rebuild/rebuild.mp4`. Connect FilmCraft's MCP server for
-   the best results (`claude mcp add filmcraft -- filmcraft-cli mcp`); the
-   skill falls back to `filmcraft-cli`.
-
-## Output
-
-| file | what |
-|------|------|
-| `EDIT-SPEC.md` | the full spec: source, hook, shots, captions, overlays, transitions, sound, look, story beats |
-| `TEMPLATE.md` | the format without the content: slots, timings, rules |
-| `timeline.otio` | OpenTimelineIO timeline, opens in editors that read OTIO |
-| `captions.vtt`, `captions.ass` | captions with word times (VTT) and style and position (ASS) |
-| `*.json` | the raw measurements, in frames at the video's rate |
+**Other languages.** The default speech model is English only. For Thai,
+Japanese, Spanish and other languages, choose a multilingual model in
+`npm run setup`: small (0.5 GB), medium (1.5 GB) or large (3.1 GB).
 
 ## Develop
 
+ViralCraft is a Rust workspace: the CLI in `apps/viralcraft`, one crate per
+stage in `crates/`. You need Rust 1.80+ and ffmpeg.
+
 ```
-cargo build --release
+npm run build                            # cargo build --release, into bin/native/
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
@@ -126,5 +120,19 @@ cargo test --workspace -- --ignored      # needs ffmpeg and the models
 ```
 
 Some ignored tests need more: `FILMCRAFT_CLI=/path/to/filmcraft-cli` for the
-FilmCraft tests, `OTIO_PYTHON=/path/to/python` (with opentimelineio) for the
-OTIO round trip. `SPEC.md` is the full specification.
+FilmCraft tests, and `OTIO_PYTHON=/path/to/python` (with opentimelineio) for
+the OTIO round trip.
+
+`npm install` downloads a prebuilt binary from this repo's GitHub release
+for the version in `package.json`. When there is none for your platform, it
+builds from source if Rust is installed. Pushing a tag `vX.Y.Z` runs
+`.github/workflows/release.yml`, which builds macOS, Linux and Windows
+binaries, uploads them, and checks `npm install` against them.
+
+The agent skills live in `.claude/skills/`; `npm install` links them into
+`.agents/skills/` for Codex. `SPEC.md` is the full specification,
+`CAPABILITY-MAP.md` the module map, and `docs/adr/` the decisions.
+
+## License
+
+Apache-2.0. See `LICENSE`.
