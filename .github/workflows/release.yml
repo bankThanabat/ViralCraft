@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  GH_REPO: ${{ github.repository }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches package.json and Cargo.toml
+        run: |
+          pkg="v$(node -p "require('./package.json').version")"
+          cargo="v$(python3 -c "import tomllib; print(tomllib.load(open('Cargo.toml', 'rb'))['workspace']['package']['version'])")"
+          echo "tag=$GITHUB_REF_NAME package.json=$pkg Cargo.toml=$cargo"
+          [ "$GITHUB_REF_NAME" = "$pkg" ] && [ "$pkg" = "$cargo" ]
+      # Created once here so the parallel builds do not race to create it.
+      - name: Create the release if missing
+        run: gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
+
+  build:
+    needs: check
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { asset: darwin-arm64, os: macos-14 }
+          - { asset: darwin-x64, os: macos-14, target: x86_64-apple-darwin }
+          - { asset: linux-x64, os: ubuntu-22.04 }
+          - { asset: linux-arm64, os: ubuntu-24.04-arm }
+          - { asset: win32-x64, os: windows-latest }
+    runs-on: ${{ matrix.os }}
+    env:
+      TARGET: ${{ matrix.target }}
+      ASSET: viralcraft-${{ matrix.asset }}.gz
+      # Otherwise whisper.cpp compiles with -march=native for the CI machine,
+      # and the binary can crash on users' older CPUs.
+      GGML_NATIVE: "OFF"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.asset }}
+      - name: Build
+        run: cargo build --release --locked -p viralcraft ${TARGET:+--target "$TARGET"}
+      - name: Package
+        run: |
+          exe=viralcraft
+          if [ "$RUNNER_OS" = Windows ]; then exe=viralcraft.exe; fi
+          bin="target/${TARGET:+$TARGET/}release/$exe"
+          if [ -z "$TARGET" ]; then "$bin" --version; fi
+          gzip -9 -c "$bin" > "$ASSET"
+      - name: Upload
+        run: gh release upload "$GITHUB_REF_NAME" "$ASSET" --clobber
+
+  smoke:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: npm install takes the download path
+        run: |
+          set -o pipefail
+          export CARGO_HOME="$RUNNER_TEMP/no-cargo"
+          PATH="$(printf '%s' "$PATH" | tr ':' '\n' | grep -v '\.cargo' | paste -sd: -)"
+          export PATH
+          if command -v cargo; then echo "cargo is still visible"; exit 1; fi
+          npm install 2>&1 | tee install.log
+          grep "downloaded viralcraft-" install.log
+      - name: npx viralcraft --version prints the version
+        run: |
+          got="$(npx viralcraft --version | tr -d '\r')"
+          want="viralcraft $(node -p "require('./package.json').version")"
+          echo "$got"
+          [ "$got" = "$want" ]
