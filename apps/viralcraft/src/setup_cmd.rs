@@ -1,6 +1,3 @@
-//! `viralcraft setup`: the first-run wizard. Shows what is installed, asks
-//! in plain words, and installs only on a yes. `doctor` stays check-only.
-
 use doctor::setup::{self, Choice, Mark, Step};
 use doctor::Os;
 use serde_json::{json, Value};
@@ -131,9 +128,6 @@ fn walk(step: &Step) {
     }
 }
 
-/// One question for a group of interchangeable models, e.g. the three
-/// sizes of speech in other languages. Each option is picked by its first
-/// letter.
 fn choose<'a>(group: &str, options: &'a [Choice]) -> Option<&'a Choice> {
     let mut question =
         format!("Optional: do you want {group} (Thai, Japanese, Spanish...)? [n] no");
@@ -147,8 +141,6 @@ fn choose<'a>(group: &str, options: &'a [Choice]) -> Option<&'a Choice> {
         .find(|o| o.label.starts_with(answer.as_str()))
 }
 
-/// A failed command is reported and the wizard goes on; the final check
-/// lists whatever is still missing.
 fn install(fixes: &[String]) {
     for fix in fixes {
         if let Err(e) = run_fix(fix) {

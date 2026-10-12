@@ -1,5 +1,4 @@
-//! What the first-run wizard shows and asks, decided from a report alone so
-//! the questions can be tested without a terminal.
+//! What the first-run wizard shows and asks, decided from a report alone.
 
 use std::path::{Path, PathBuf};
 
@@ -55,8 +54,6 @@ pub struct Choice {
     pub fix: String,
 }
 
-/// The things a user recognises: ffmpeg with ffprobe, the required models
-/// as a whole, each optional model, each group of interchangeable models.
 enum Part<'a> {
     Tools(Vec<&'a Item>),
     Required(Vec<&'a Item>),

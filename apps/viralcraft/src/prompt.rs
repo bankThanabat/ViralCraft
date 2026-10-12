@@ -14,8 +14,6 @@ pub fn confirm(question: &str) -> bool {
     matches!(ask(question).as_deref(), Some("y" | "Y" | "yes"))
 }
 
-/// Asks a [Y/n] question: Enter is yes, anything but y/yes is no. Closed
-/// stdin is no, so nothing installs when no one is at the terminal.
 pub fn confirm_default_yes(question: &str) -> bool {
     matches!(
         ask(question).map(|a| a.to_lowercase()).as_deref(),
