@@ -5,7 +5,7 @@ to work by these ids. Each module is a crate in one Cargo workspace.
 
 | Module id | Responsibility | Depends on |
 |---|---|---|
-| `doctor` | Check for ffmpeg, ffprobe, the whisper model and both ocrs model files (with SHA-256). Report what is missing with install or download commands; `--install` asks per item. | — |
+| `doctor` | Check for ffmpeg, ffprobe, the whisper model and both ocrs model files (with SHA-256). Report what is missing with install or download commands. `viralcraft setup` walks a first-run user through installing them, asking first. | — |
 | `ingest` | Resolve the input file (argument, or the drop folder, or ask). Normalize to constant frame rate. Probe: rational rate, frame count, resolution, aspect, audio offset. Attach the safe-zone profile. | doctor |
 | `shots` | Shot-change detection (ffmpeg `scdet` candidates, then a verified threshold policy) and transition candidates (dissolve, flash). Extract every frame at 720 px on the short side (never upscaled). | ingest |
 | `audio` | Speech transcription with DTW word timestamps (whisper-rs adapter), beat/tempo/onset detection in JAMS form, music and speech spans. No on-camera judgement. | ingest |

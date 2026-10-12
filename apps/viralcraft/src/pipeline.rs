@@ -33,7 +33,7 @@ pub fn analyze(args: AnalyzeArgs) -> anyhow::Result<(Value, bool)> {
         return Ok((
             json!({
                 "ok": false,
-                "error": "missing tools or models: run `viralcraft doctor --install`",
+                "error": "missing tools or models: run `npm run setup` (or `viralcraft setup`)",
                 "items": report.items,
             }),
             false,

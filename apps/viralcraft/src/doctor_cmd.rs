@@ -2,7 +2,7 @@ use std::io;
 use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context};
-use doctor::{Env, Item, Os, Report, State, MODELS};
+use doctor::{Env, Os, Report, State, MODELS};
 use serde_json::{json, Value};
 
 /// The tools-and-models check on this machine, without printing.
@@ -16,30 +16,14 @@ pub fn check() -> Report {
     doctor::check(&env, &MODELS)
 }
 
-pub fn run(install: bool) -> anyhow::Result<(Value, bool)> {
-    let models_dir = doctor::default_models_dir();
-    let env = Env {
-        os: Os::current(),
-        models_dir: &models_dir,
-        find_tool: Box::new(|name| which::which(name).ok()),
-    };
-
-    let mut report = doctor::check(&env, &MODELS);
+pub fn run() -> anyhow::Result<(Value, bool)> {
+    let report = check();
     print_report(&report);
-
-    if install && report.has_offers() {
-        doctor::install(&report, ask, choose, run_fix)?;
-        report = doctor::check(&env, &MODELS);
-        eprintln!();
-        print_report(&report);
-    } else if !report.ok {
-        eprintln!(
-            "\nRun `viralcraft doctor --install` to install, or run the commands above yourself."
-        );
+    if !report.ok {
+        eprintln!("\nRun `npm run setup` (or `viralcraft setup`) to install them.");
     } else if report.has_offers() {
-        eprintln!("\nOptional features are off. `viralcraft doctor --install` offers them.");
+        eprintln!("\nOptional features are off. `viralcraft setup` offers them.");
     }
-
     let summary = json!({ "ok": report.ok, "items": report.items });
     Ok((summary, report.ok))
 }
@@ -59,7 +43,9 @@ pub fn print_report(report: &Report) {
                 .map(|i| i.name.as_str())
                 .collect();
             if installed.is_empty() {
-                eprintln!("off      {group}  (optional: small, medium or large; `viralcraft doctor --install`)");
+                eprintln!(
+                    "off      {group}  (optional: small, medium or large; `viralcraft setup`)"
+                );
             } else {
                 eprintln!("ok       {group}  ({})", installed.join(", "));
             }
@@ -82,37 +68,9 @@ pub fn print_report(report: &Report) {
     }
 }
 
-/// One question for a group of interchangeable models, e.g. the three
-/// multilingual speech sizes.
-fn choose(group: &str, choices: &[&Item]) -> Option<usize> {
-    let mut question =
-        format!("Optional: do you want {group} (Thai, Japanese, Spanish...)? [n] no");
-    for c in choices {
-        let size = c.purpose.rsplit(": ").next().unwrap_or(&c.purpose);
-        let key = size.chars().next().unwrap_or('?');
-        question.push_str(&format!(", [{key}] {size}"));
-    }
-    let answer = crate::prompt::answer(&question)?;
-    choices.iter().position(|c| {
-        let size = c.purpose.rsplit(": ").next().unwrap_or(&c.purpose);
-        size.starts_with(answer.as_str()) && !answer.is_empty()
-    })
-}
-
-fn ask(item: &Item) -> bool {
-    let fix = item.fix.as_deref().unwrap_or_default();
-    if item.optional && item.state == State::Missing {
-        return crate::prompt::confirm(&format!(
-            "Optional: do you want {}? It downloads {} with `{fix}`. [y/N]",
-            item.purpose, item.name
-        ));
-    }
-    crate::prompt::confirm(&format!("Install {} with `{fix}`? [y/N]", item.name))
-}
-
 /// Runs a fix through the platform shell. The child's stdout is sent to our
 /// stderr so stdout stays a single JSON line.
-fn run_fix(cmd: &str) -> anyhow::Result<()> {
+pub fn run_fix(cmd: &str) -> anyhow::Result<()> {
     let mut command = if cfg!(windows) {
         let mut c = Command::new("cmd");
         c.args(["/C", cmd]);

@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -8,6 +9,24 @@ fn viralcraft(args: &[&str], models_dir: &Path) -> std::process::Output {
         .stdin(Stdio::null())
         .output()
         .expect("the test binary is built by cargo before tests run")
+}
+
+fn viralcraft_answering(args: &[&str], models_dir: &Path, answers: &str) -> std::process::Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_viralcraft"))
+        .args(args)
+        .env("VIRALCRAFT_MODELS", models_dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the test binary is built by cargo before tests run");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(answers.as_bytes())
+        .unwrap();
+    child.wait_with_output().unwrap()
 }
 
 fn single_json_line(stdout: &[u8]) -> serde_json::Value {
@@ -36,6 +55,83 @@ fn doctor_reports_missing_models_and_exits_1() {
     assert_eq!(whisper["state"], "missing");
     assert!(whisper["fix"].as_str().unwrap().starts_with("curl "));
     assert!(String::from_utf8_lossy(&out.stderr).contains("ggml-tiny.en.bin"));
+}
+
+#[test]
+fn doctor_points_at_setup_and_no_longer_installs() {
+    let empty = tempfile::tempdir().unwrap();
+    let doctor = viralcraft(&["doctor"], empty.path());
+    assert!(
+        String::from_utf8_lossy(&doctor.stderr)
+            .contains("Run `npm run setup` (or `viralcraft setup`)"),
+        "doctor tells the user how to install"
+    );
+
+    let install = viralcraft(&["doctor", "--install"], empty.path());
+    assert_eq!(install.status.code(), Some(2), "--install is gone");
+    assert_eq!(single_json_line(&install.stdout)["ok"], false);
+}
+
+#[test]
+fn setup_with_no_one_at_the_terminal_installs_nothing() {
+    let empty = tempfile::tempdir().unwrap();
+    let out = viralcraft(&["setup"], empty.path());
+
+    assert_eq!(out.status.code(), Some(1));
+    let summary = single_json_line(&out.stdout);
+    assert_eq!(summary["command"], "setup");
+    assert_eq!(summary["ok"], false);
+    assert!(summary["filmcraft"].is_boolean(), "{summary}");
+    assert!(
+        summary["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| i["name"] == "ggml-tiny.en.bin" && i["state"] == "missing"),
+        "{summary}"
+    );
+    assert_eq!(
+        std::fs::read_dir(empty.path()).unwrap().count(),
+        0,
+        "closed stdin is a no, so nothing is downloaded"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("Not ready yet"), "{stderr}");
+    assert!(
+        stderr.contains("ggml-tiny.en.bin: curl "),
+        "the missing list keeps each command for running by hand: {stderr}"
+    );
+}
+
+#[test]
+fn setup_asks_once_for_the_required_models_in_plain_words() {
+    let empty = tempfile::tempdir().unwrap();
+    let out = viralcraft_answering(&["setup"], empty.path(), &"n\n".repeat(5));
+
+    assert_eq!(out.status.code(), Some(1));
+    assert_eq!(single_json_line(&out.stdout)["ok"], false);
+    assert_eq!(std::fs::read_dir(empty.path()).unwrap().count(), 0);
+
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    let questions: Vec<&str> = stderr
+        .lines()
+        .filter(|l| l.contains("speech and text models") && l.contains('?'))
+        .collect();
+    assert_eq!(
+        questions,
+        [format!(
+            "Download the speech and text models (90 MB) to {}? [Y/n] ",
+            empty.path().display()
+        )],
+        "one question for all three required models: {stderr}"
+    );
+    assert!(
+        stderr
+            .lines()
+            .filter(|l| l.contains('?'))
+            .all(|l| !l.contains("curl")),
+        "questions never show a download command: {stderr}"
+    );
 }
 
 #[test]
@@ -236,8 +332,11 @@ fn analyze_stops_before_touching_the_video_when_a_model_is_missing() {
     let summary = single_json_line(&out.stdout);
     assert_eq!(summary["command"], "analyze");
     assert!(
-        summary["error"].as_str().unwrap().contains("doctor"),
-        "{summary}"
+        summary["error"]
+            .as_str()
+            .unwrap()
+            .contains("viralcraft setup"),
+        "the error points at the wizard: {summary}"
     );
     assert!(
         !out_dir.exists(),
