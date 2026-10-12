@@ -31,7 +31,7 @@ User stories:
 
 ## Tech Stack
 
-- Rust stable 1.80+, edition 2021, Cargo workspace.
+- Rust stable 1.94+, edition 2021, Cargo workspace.
 - External tools: `ffmpeg` and `ffprobe` (the only required binaries).
 - Crates (pin versions in `Cargo.toml` at first use):
   - `clap` (derive) for the CLI

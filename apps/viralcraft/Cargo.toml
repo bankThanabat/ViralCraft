@@ -18,7 +18,7 @@ exports = { path = "../../crates/exports" }
 ingest = { path = "../../crates/ingest" }
 inspect = { path = "../../crates/inspect" }
 rebuild = { path = "../../crates/rebuild" }
-rpassword = "~7.4"  # 7.5 needs Rust 1.85; we support 1.80
+rpassword = "~7.4"
 shots = { path = "../../crates/shots" }
 template = { path = "../../crates/template" }
 which = "8"
