@@ -48,13 +48,13 @@ User stories:
     as the default model. Verified on Apple Silicon 2026-10-09: 3.2 s of
     synthesized speech transcribed word-for-word with token timestamps in
     0.15 s on CPU (BLAS backend; the `metal` feature was not enabled).
-    `doctor` downloads the model file on request. Word timing uses whisper's
+    `setup` downloads the model file on request. Word timing uses whisper's
     DTW token timestamps (`DtwModelPreset::TinyEn`, `t_dtw` per token) with
     `split_on_word`; the token-to-word grouping lives in a tested adapter in
     `crates/audio` that turns whisper-rs segments into `audio.json` words.
   - `ocrs` needs two model files, `text-detection.rten` (2.5 MB) and
     `text-recognition.rten` (9.7 MB), from
-    `https://ocrs-models.s3-accelerate.amazonaws.com/`. `doctor` downloads
+    `https://ocrs-models.s3-accelerate.amazonaws.com/`. `setup` downloads
     them on request to `~/.cache/viralcraft/` and checks their SHA-256. The
     default models read the Latin alphabet only. Non-Latin captions come
     back as garbage Latin letters with the box, timing and style still
@@ -78,7 +78,8 @@ Run:          ./target/release/viralcraft <subcommand>
 CLI surface:
 
 ```
-viralcraft doctor [--install]           # check tools and models; --install asks per item
+viralcraft doctor                       # check tools and models; never installs
+viralcraft setup                        # first-run wizard (`npm run setup`): asks, then installs
 viralcraft analyze [FILE] [--inbox DIR] [--out DIR] [--safe-zone PROFILE] [--threshold N]
                                         # full pipeline; FILE defaults to the
                                         # single file in --inbox, else asks
@@ -633,7 +634,7 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
 - Run `cargo fmt`, `cargo clippy -D warnings` and `cargo test` before a commit.
 - Keep every intermediate file as versioned JSON with a type in `crates/model`.
 - Write `unknown` for a value the CLI cannot measure. Never invent a number.
-- Ask before installing anything; `doctor` prints the command and waits.
+- Ask before installing anything; `setup` asks in plain words and waits.
 - Keep the Markdown section names and field names in this spec stable; the
   skill and the snapshots depend on them.
 
@@ -660,7 +661,10 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
 - `viralcraft doctor` checks ffmpeg, ffprobe, the whisper model and both ocrs
   models. It prints one line per item with the install or download command,
   exits 0 when all are present and 1 otherwise, and never installs.
-  `viralcraft doctor --install` asks per item and runs the command on yes.
+- `viralcraft setup` (run by `npm run setup`) shows what is installed, asks
+  once for ffmpeg and once for all required models (default yes), offers
+  the optional extras (default no), says where to get FilmCraft, and
+  installs only on a yes. Closed stdin is no. Exits like `doctor`.
 - `viralcraft analyze` with one file in `inbox/` runs without prompting; with
   zero or two files it asks for a path. If `doctor` would fail, `analyze`
   prints the same report and exits 1 before touching the input.
@@ -722,7 +726,7 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
   frames with the tiny model. Decided 2026-10-09 in task 6.
 - **Sound-effect names are optional and go into the transcript.** Google's
   YAMNet (Apache-2.0, 16 MB, AudioSet classes, run through rten) names
-  non-speech sounds; `doctor --install` asks whether the user wants it.
+  non-speech sounds; `setup` asks whether the user wants it.
   Sounds are written in brackets where they happen, closed-caption style
   (`here it goes. [whoosh] [thunk]`), in `audio.json`'s `transcript`.
   YAMNet works in 0.48 s steps; the user asked for this placement rather
@@ -732,7 +736,7 @@ Guided by the project testing philosophy: fast, isolated, repeatable.
   swapped. On the first real clip it found `[whoosh] [thunk]` on the
   punchline cut and misnamed a jingle `[car alarm]`. Decided 2026-10-09.
 - **Other languages use an optional multilingual whisper model.** The
-  user picks one size at `doctor --install`: small (0.5 GB), medium
+  user picks one size at `setup`: small (0.5 GB), medium
   (1.5 GB) or large-v3 (3.1 GB). `audio` uses the biggest one installed,
   lets it detect the language and writes it to `audio.json` as
   `language`. Speech it finds to be English is transcribed again with

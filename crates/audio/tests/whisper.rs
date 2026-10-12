@@ -88,7 +88,7 @@ fn cuts_3_click_track_gives_120_bpm_and_beats_every_15_frames() {
 }
 
 #[test]
-#[ignore = "needs a multilingual whisper model (viralcraft doctor --install)"]
+#[ignore = "needs a multilingual whisper model (viralcraft setup)"]
 fn thai_speech_is_detected_and_transcribed_in_thai() {
     let models = doctor::default_models_dir();
     if !["ggml-small.bin", "ggml-medium.bin", "ggml-large-v3.bin"]

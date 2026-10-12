@@ -1,6 +1,8 @@
 //! Checks for the tools and model files ViralCraft needs, and the commands
 //! that install them. Never installs anything on its own.
 
+pub mod setup;
+
 use std::fs::File;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -27,7 +29,7 @@ pub struct ModelSpec {
 }
 
 /// The multilingual whisper models: pick one size.
-pub const MULTILINGUAL: &str = "multilingual speech";
+pub const MULTILINGUAL: &str = "speech in other languages";
 
 /// Every model ViralCraft loads. Hashes were taken from the files verified on
 /// 2026-10-09; the whisper and YAMNet hashes match Hugging Face's published
@@ -136,9 +138,17 @@ pub enum State {
     Corrupt,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Kind {
+    Tool,
+    Model,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Item {
     pub name: String,
+    pub kind: Kind,
     pub state: State,
     pub path: Option<PathBuf>,
     /// The command that fixes this item; `None` when it is present.
@@ -148,6 +158,16 @@ pub struct Item {
     pub purpose: String,
     /// Set for interchangeable models offered as one choice.
     pub group: Option<String>,
+    /// Download size in bytes; `None` for tools.
+    pub size: Option<u64>,
+}
+
+impl Item {
+    /// Whether this item fails the check: anything not present, except a
+    /// missing optional extra.
+    pub fn fails(&self) -> bool {
+        self.state != State::Present && !(self.optional && self.state == State::Missing)
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -216,6 +236,7 @@ pub fn check(env: &Env, models: &[ModelSpec]) -> Report {
         let path = (env.find_tool)(tool);
         items.push(Item {
             name: tool.to_string(),
+            kind: Kind::Tool,
             state: if path.is_some() {
                 State::Present
             } else {
@@ -226,6 +247,7 @@ pub fn check(env: &Env, models: &[ModelSpec]) -> Report {
             optional: false,
             purpose: "video and audio decoding".to_string(),
             group: None,
+            size: None,
         });
     }
     for model in models {
@@ -233,17 +255,17 @@ pub fn check(env: &Env, models: &[ModelSpec]) -> Report {
         let state = model_state(model, &path);
         items.push(Item {
             name: model.file.to_string(),
+            kind: Kind::Model,
             state,
             fix: (state != State::Present).then(|| model_fix(model, &path)),
             path: Some(path),
             optional: model.optional,
             purpose: model.purpose.to_string(),
             group: model.group.map(str::to_string),
+            size: Some(model.size),
         });
     }
-    let ok = items
-        .iter()
-        .all(|i| i.state == State::Present || (i.optional && i.state == State::Missing));
+    let ok = !items.iter().any(Item::fails);
     Report { ok, items }
 }
 
@@ -264,48 +286,6 @@ fn sha256_file(path: &Path) -> io::Result<String> {
     let mut hasher = Sha256::new();
     io::copy(&mut File::open(path)?, &mut hasher)?;
     Ok(format!("{:x}", hasher.finalize()))
-}
-
-/// Offers each fix in turn. `ask` returns whether the user accepted a
-/// single item; `choose` picks one member of a group of interchangeable
-/// models (or none), and is asked once per group with nothing installed.
-/// `run` executes the command. A command shared by several items runs once.
-pub fn install<E>(
-    report: &Report,
-    mut ask: impl FnMut(&Item) -> bool,
-    mut choose: impl FnMut(&str, &[&Item]) -> Option<usize>,
-    mut run: impl FnMut(&str) -> Result<(), E>,
-) -> Result<Vec<String>, E> {
-    let mut ran: Vec<String> = Vec::new();
-    let mut groups_done: Vec<String> = Vec::new();
-    for item in &report.items {
-        let Some(fix) = &item.fix else { continue };
-        if let Some(group) = &item.group {
-            if groups_done.contains(group) || report.group_satisfied(Some(group)) {
-                continue;
-            }
-            groups_done.push(group.clone());
-            let members: Vec<&Item> = report
-                .items
-                .iter()
-                .filter(|i| i.group.as_deref() == Some(group.as_str()) && i.fix.is_some())
-                .collect();
-            if let Some(pick) = choose(group, &members).and_then(|k| members.get(k)) {
-                let cmd = pick.fix.clone().expect("members have a fix");
-                run(&cmd)?;
-                ran.push(cmd);
-            }
-            continue;
-        }
-        if ran.contains(fix) {
-            continue;
-        }
-        if ask(item) {
-            run(fix)?;
-            ran.push(fix.clone());
-        }
-    }
-    Ok(ran)
 }
 
 #[cfg(test)]
@@ -423,28 +403,25 @@ mod tests {
     }
 
     #[test]
-    fn install_asks_per_item_and_runs_only_the_accepted_ones() {
+    fn setup_has_nothing_to_ask_when_every_file_matches_its_hash() {
         let dir = tempfile::tempdir().unwrap();
-        let report = check(&env(Os::MacOs, dir.path(), &[]), &[]);
+        let models = [
+            test_model("speech.bin", b"speech"),
+            optional_model("sfx.onnx", b"sfx"),
+            grouped("s.bin", b"s"),
+        ];
+        fs::write(dir.path().join("speech.bin"), b"speech").unwrap();
+        fs::write(dir.path().join("sfx.onnx"), b"sfx").unwrap();
+        fs::write(dir.path().join("s.bin"), b"s").unwrap();
 
-        let mut asked = Vec::new();
-        let mut ran = Vec::new();
-        install(
-            &report,
-            |item| {
-                asked.push(item.name.clone());
-                item.name == "ffprobe"
-            },
-            |_, _| None,
-            |cmd| {
-                ran.push(cmd.to_string());
-                Ok::<(), std::convert::Infallible>(())
-            },
-        )
-        .unwrap();
+        let report = check(&env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]), &models);
 
-        assert_eq!(asked, ["ffmpeg", "ffprobe"]);
-        assert_eq!(ran, ["brew install ffmpeg"]);
+        assert!(report.ok);
+        assert_eq!(
+            setup::plan(&report, Os::MacOs, false),
+            [],
+            "nothing to install, so brew does not matter"
+        );
     }
 
     fn grouped(name: &'static str, content: &[u8]) -> ModelSpec {
@@ -454,47 +431,6 @@ mod tests {
             purpose: "speech in other languages",
             ..test_model(name, content)
         }
-    }
-
-    #[test]
-    fn a_model_group_is_offered_once_as_a_choice_and_only_the_pick_is_fetched() {
-        let dir = tempfile::tempdir().unwrap();
-        let models = [
-            grouped("s.bin", b"s"),
-            grouped("m.bin", b"m"),
-            grouped("l.bin", b"l"),
-        ];
-        let report = check(&env(Os::MacOs, dir.path(), &["ffmpeg", "ffprobe"]), &models);
-        assert!(report.ok, "an optional group missing is fine");
-
-        let mut asked_yes_no = Vec::new();
-        let mut offered: Vec<Vec<String>> = Vec::new();
-        let mut ran = Vec::new();
-        install(
-            &report,
-            |item| {
-                asked_yes_no.push(item.name.clone());
-                false
-            },
-            |group, choices| {
-                assert_eq!(group, "multilingual speech");
-                offered.push(choices.iter().map(|c| c.name.clone()).collect());
-                Some(1)
-            },
-            |cmd| {
-                ran.push(cmd.to_string());
-                Ok::<(), std::convert::Infallible>(())
-            },
-        )
-        .unwrap();
-
-        assert!(
-            asked_yes_no.is_empty(),
-            "group members are not asked one by one"
-        );
-        assert_eq!(offered, [["s.bin", "m.bin", "l.bin"]]);
-        assert_eq!(ran.len(), 1);
-        assert!(ran[0].contains("m.bin"), "{ran:?}");
     }
 
     #[test]

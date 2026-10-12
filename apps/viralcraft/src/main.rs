@@ -8,6 +8,7 @@ mod doctor_cmd;
 mod finalize;
 mod pipeline;
 mod prompt;
+mod setup_cmd;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -42,11 +43,11 @@ enum Command {
     /// Delete frames/ and source.cfr.mp4 from a finished run.
     Clean { run_dir: PathBuf },
     /// Check that the tools and model files ViralCraft needs are present.
-    Doctor {
-        /// Offer to run each missing item's install command, asking first.
-        #[arg(long)]
-        install: bool,
-    },
+    /// Never installs; `setup` does.
+    Doctor,
+    /// First-run wizard: show what is installed, then ask before installing
+    /// each missing piece.
+    Setup,
     /// Normalize a video to constant frame rate and write probe.json.
     Ingest {
         /// The video. Defaults to the only video in --inbox; asks otherwise.
@@ -128,7 +129,8 @@ impl Command {
             Command::Prompt { .. } => "prompt",
             Command::Voiceover { .. } => "voiceover",
             Command::Clean { .. } => "clean",
-            Command::Doctor { .. } => "doctor",
+            Command::Doctor => "doctor",
+            Command::Setup => "setup",
             Command::Ingest { .. } => "ingest",
             Command::Shots { .. } => "shots",
             Command::Audio { .. } => "audio",
@@ -292,7 +294,8 @@ fn run(command: Command) -> anyhow::Result<(Value, bool)> {
             ))
         }
         Command::Clean { run_dir } => pipeline::clean(&run_dir),
-        Command::Doctor { install } => doctor_cmd::run(install),
+        Command::Doctor => doctor_cmd::run(),
+        Command::Setup => setup_cmd::run(),
         Command::Ingest {
             file,
             inbox,
