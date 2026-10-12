@@ -1,5 +1,5 @@
 //! Builds a small rebuild of cuts-3 in FilmCraft with the commands in
-//! `skill/viralcraft-filmcraft/references/filmcraft-commands.md`, then checks
+//! `.claude/skills/viralcraft-filmcraft/references/filmcraft-commands.md`, then checks
 //! the export. Needs FilmCraft's CLI:
 //! `FILMCRAFT_CLI=/path/to/filmcraft-cli cargo test -p rebuild -- --ignored`.
 
